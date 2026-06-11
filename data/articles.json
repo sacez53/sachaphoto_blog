@@ -1,32 +1,42 @@
 [
-  {
-    "slug": "simplicite-design-web",
-    "title": "L'art de la simplicité dans le design web",
-    "author": "Sacha",
-    "date": "2026-06-10",
-    "featured": true,
-    "important": true,
-    "excerpt": "Pourquoi les sites les plus efficaces sont souvent les plus simples, et comment la contrainte nourrit la créativité.",
-    "image": "assets/images/simplicite-design-web.png"
-  },
-  {
-    "slug": "pourquoi-blog-statique",
-    "title": "Pourquoi j'ai choisi un blog statique",
-    "author": "Sacha",
-    "date": "2026-06-05",
-    "featured": true,
-    "important": false,
-    "excerpt": "Pas de base de données, pas de CMS, juste des fichiers. Retour sur un choix technique assumé.",
-    "image": "assets/images/pourquoi-blog-statique.png"
-  },
-  {
-    "slug": "apprendre-coder-2026",
-    "title": "Apprendre à coder en 2026 : par où commencer ?",
-    "author": "Sacha",
-    "date": "2026-06-01",
-    "featured": false,
-    "important": false,
-    "excerpt": "Le paysage du développement évolue vite. Voici un guide honnête pour ceux qui veulent s'y mettre aujourd'hui.",
-    "image": "assets/images/apprendre-coder-2026.png"
-  }
+    {
+        "slug":  "simplicite-design-web",
+        "title":  "L\u0027art de la simplicité dans le design web",
+        "author":  "Sacha",
+        "date":  "2026-06-10",
+        "featured":  true,
+        "important":  true,
+        "excerpt":  "Pourquoi les sites les plus efficaces sont souvent les plus simples, et comment la contrainte nourrit la créativité.",
+        "image":  "assets/images/simplicite-design-web.png"
+    },
+    {
+        "slug":  "pourquoi-blog-statique",
+        "title":  "Pourquoi j\u0027ai choisi un blog statique",
+        "author":  "Sacha",
+        "date":  "2026-06-05",
+        "featured":  true,
+        "important":  false,
+        "excerpt":  "Pas de base de données, pas de CMS, juste des fichiers. Retour sur un choix technique assumé.",
+        "image":  "assets/images/pourquoi-blog-statique.png"
+    },
+    {
+        "slug":  "apprendre-coder-2026",
+        "title":  "Apprendre à coder en 2026 : par où commencer ?",
+        "author":  "Sacha",
+        "date":  "2026-06-01",
+        "featured":  false,
+        "important":  false,
+        "excerpt":  "Le paysage du développement évolue vite. Voici un guide honnête pour ceux qui veulent s\u0027y mettre aujourd\u0027hui.",
+        "image":  "assets/images/apprendre-coder-2026.png"
+    },
+    {
+        "slug":  "mon-blog-personel-pourquoi-et-comment",
+        "title":  "Mon blog personel, pourquoi et comment",
+        "author":  "Sacha GUITTER",
+        "date":  "2026-06-12T01:15",
+        "featured":  true,
+        "important":  true,
+        "excerpt":  "A completer.",
+        "image":  "assets/images/mon-blog-personel-pourquoi-et-comment.png"
+    }
 ]

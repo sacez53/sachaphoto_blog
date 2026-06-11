@@ -13,34 +13,38 @@
 </head>
 <body>
 
+  <!-- Lien d'évitement pour la navigation au clavier -->
+  <a href="#main-content" class="skip-link">Aller au contenu</a>
+
   <!-- ===== EN-TÊTE ===== -->
   <!-- Modifier le nom du blog et les liens de navigation ici -->
   <header class="site-header">
     <div class="container">
       <span class="site-title"><a href="index.html">Blog</a></span>
-      <nav class="site-nav">
-        <a href="index.html">Accueil</a>
+      <nav class="site-nav" aria-label="Navigation principale">
+        <a href="index.html" aria-current="page">Accueil</a>
         <a href="articles.html">Articles</a>
       </nav>
     </div>
   </header>
 
-  <main class="container">
+  <main class="container" id="main-content">
 
     <!-- ===== ARTICLES MIS EN AVANT ===== -->
-    <section>
-      <p class="section-title">À la une</p>
-      <ul class="featured-list" id="featured-list">
-        <!-- Rempli dynamiquement par index.js -->
+    <section aria-labelledby="featured-heading">
+      <h2 class="section-title" id="featured-heading">À la une</h2>
+      <ul class="featured-list" id="featured-list" role="list" aria-busy="true">
+        <li class="loading-indicator" aria-hidden="true">Chargement…</li>
       </ul>
     </section>
 
     <!-- ===== ARTICLES RÉCENTS ===== -->
-    <section>
-      <p class="section-title">Articles récents</p>
-      <ul class="articles-grid articles-grid--three" id="recent-list">
-        <!-- Rempli dynamiquement par index.js -->
+    <section aria-labelledby="recent-heading">
+      <h2 class="section-title" id="recent-heading">Articles récents</h2>
+      <ul class="articles-grid articles-grid--three" id="recent-list" role="list" aria-busy="true">
+        <li class="loading-indicator" aria-hidden="true">Chargement…</li>
       </ul>
+      <p class="see-more"><a href="articles.html">Voir tous les articles →</a></p>
     </section>
 
   </main>

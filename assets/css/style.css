@@ -37,6 +37,51 @@ a:hover {
   color: #0d3b5e;
 }
 
+/* --- Focus visible (navigation au clavier) --- */
+/* Anneau de focus clair et cohérent pour tous les éléments interactifs */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #1a5276;
+  outline-offset: 2px;
+}
+
+/* Pas d'anneau de focus au clic souris */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* --- Lien d'évitement (skip-link) --- */
+/* Masqué visuellement, visible au focus clavier */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 1rem;
+  background: #1a1a1a;
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 0 0 4px 4px;
+  font-size: 0.875rem;
+  text-decoration: none;
+  z-index: 1000;
+  transition: top 0.15s ease;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* --- Indicateur de chargement --- */
+.loading-indicator {
+  color: #999;
+  font-size: 0.9375rem;
+  padding: 1rem 0;
+  list-style: none;
+}
+
 /* --- Conteneur de lecture --- */
 /* Modifier max-width pour ajuster la largeur de lecture */
 .container {
@@ -81,13 +126,20 @@ a:hover {
   color: #1a1a1a;
 }
 
+/* Indicateur visuel de la page courante */
+.site-nav a[aria-current="page"] {
+  color: #1a1a1a;
+  font-weight: 600;
+  text-decoration-thickness: 2px;
+}
+
 /* --- Sections --- */
 .section-title {
   font-size: 0.8125rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #888;
+  color: #666;  /* Amélioré : ratio de contraste ≥ 4.5:1 sur #fdfdfd */
   margin-bottom: 1.25rem;
 }
 
@@ -138,12 +190,34 @@ section {
 
 .featured-item .meta {
   font-size: 0.8125rem;
-  color: #777;
+  color: #666;  /* Contraste amélioré */
   margin-bottom: 0.5rem;
 }
 
 .featured-item .excerpt {
   color: #444;
+}
+
+/* --- Lien « Voir plus » --- */
+.see-more {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.see-more a {
+  display: inline-block;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.9375rem;
+  color: #1a5276;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  text-decoration: none;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.see-more a:hover {
+  border-color: #1a5276;
+  color: #0d3b5e;
 }
 
 /* --- Cartes d'articles (récents / liste) --- */
@@ -195,13 +269,13 @@ section {
 
 .article-card .meta {
   font-size: 0.8125rem;
-  color: #777;
+  color: #666;  /* Contraste amélioré */
   margin-bottom: 0.5rem;
 }
 
 .article-card .excerpt {
   font-size: 0.9375rem;
-  color: #555;
+  color: #444;  /* Contraste ≥ 4.5:1 */
   line-height: 1.6;
 }
 
@@ -227,7 +301,7 @@ section {
 
 .article-header .meta {
   font-size: 0.875rem;
-  color: #777;
+  color: #666;  /* Contraste amélioré */
 }
 
 /* Contenu de l'article */
@@ -254,11 +328,22 @@ section {
   border-radius: 2px;
 }
 
+.article-content figure {
+  margin: 1.5rem 0;
+}
+
+.article-content figcaption {
+  font-size: 0.875rem;
+  color: #666;
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
 .article-content blockquote {
   border-left: 3px solid #ccc;
   padding-left: 1.25rem;
   margin: 1.5rem 0;
-  color: #555;
+  color: #444;  /* Contraste amélioré */
   font-style: italic;
 }
 
@@ -267,7 +352,7 @@ section {
   margin-top: 0.5rem;
   font-style: normal;
   font-size: 0.875rem;
-  color: #888;
+  color: #666;  /* Contraste amélioré */
 }
 
 .article-content ul,
@@ -283,7 +368,7 @@ section {
 .error-message {
   text-align: center;
   padding: 3rem 1rem;
-  color: #777;
+  color: #666;
 }
 
 .error-message h2 {
@@ -299,7 +384,7 @@ section {
   border-top: 1px solid #ddd;
   text-align: center;
   font-size: 0.8125rem;
-  color: #999;
+  color: #666;  /* Contraste amélioré */
 }
 
 /* --- Responsive --- */
@@ -330,5 +415,15 @@ section {
 
   .container {
     padding: 0 1rem;
+  }
+}
+
+/* --- Réduction de mouvement (préférence utilisateur) --- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
   }
 }

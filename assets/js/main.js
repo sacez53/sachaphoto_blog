@@ -3,6 +3,18 @@
    ============================================================ */
 
 /**
+ * Échappe les caractères HTML spéciaux pour éviter les injections XSS.
+ * @param {string} str - Chaîne à échapper.
+ * @returns {string}
+ */
+function escapeHTML(str) {
+  if (typeof str !== 'string') return '';
+  const div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
+  return div.innerHTML;
+}
+
+/**
  * Charge un fichier JSON et renvoie les données.
  * @param {string} url - Chemin relatif vers le fichier JSON.
  * @returns {Promise<any>}
@@ -14,34 +26,57 @@ async function fetchJSON(url) {
 }
 
 /**
- * Formate une date ISO (ex : "2026-06-10") en format lisible français.
+ * Formate une date ISO en format lisible français.
+ * Supporte les dates simples ("2026-06-10") et avec heure ("2026-06-10T14:30").
  * @param {string} dateStr
  * @returns {string}
  */
 function formatDate(dateStr) {
   const d = new Date(dateStr);
-  return d.toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  if (isNaN(d.getTime())) return dateStr; // Date invalide → retourne la chaîne brute
+
+  const options = { day: 'numeric', month: 'long', year: 'numeric' };
+
+  // Si la date contient une heure, l'afficher aussi
+  if (dateStr.includes('T')) {
+    options.hour = '2-digit';
+    options.minute = '2-digit';
+  }
+
+  return d.toLocaleDateString('fr-FR', options);
+}
+
+/**
+ * Génère un élément <time> HTML sémantique à partir d'une date ISO.
+ * @param {string} dateStr - Date ISO (ex : "2026-06-10" ou "2026-06-10T14:30").
+ * @returns {string} HTML avec balise <time>.
+ */
+function renderDate(dateStr) {
+  return `<time datetime="${escapeHTML(dateStr)}">${formatDate(dateStr)}</time>`;
 }
 
 /**
  * Génère le HTML d'une carte d'article (aperçu).
+ * L'image dans le lien a un alt vide car le titre adjacent décrit déjà l'article.
  * @param {object} article - Objet article (depuis articles.json).
  * @returns {string} HTML
  */
 function renderArticleCard(article) {
+  const title = escapeHTML(article.title);
+  const author = escapeHTML(article.author);
+  const excerpt = escapeHTML(article.excerpt);
+  const image = escapeHTML(article.image);
+  const slug = encodeURIComponent(article.slug);
+
   return `
-    <li class="article-card">
-      <a href="article.html?slug=${article.slug}">
-        <img src="${article.image}" alt="${article.title}" loading="lazy">
+    <li class="article-card" role="listitem">
+      <a href="article.html?slug=${slug}" aria-hidden="true" tabindex="-1">
+        <img src="${image}" alt="" loading="lazy">
       </a>
       <div class="article-card-body">
-        <h3><a href="article.html?slug=${article.slug}">${article.title}</a></h3>
-        <p class="meta">${article.author} · ${formatDate(article.date)}</p>
-        <p class="excerpt">${article.excerpt}</p>
+        <h3><a href="article.html?slug=${slug}">${title}</a></h3>
+        <p class="meta">${author} · ${renderDate(article.date)}</p>
+        <p class="excerpt">${excerpt}</p>
       </div>
     </li>
   `;
@@ -53,14 +88,20 @@ function renderArticleCard(article) {
  * @returns {string} HTML
  */
 function renderFeaturedItem(article) {
+  const title = escapeHTML(article.title);
+  const author = escapeHTML(article.author);
+  const excerpt = escapeHTML(article.excerpt);
+  const image = escapeHTML(article.image);
+  const slug = encodeURIComponent(article.slug);
+
   return `
-    <li class="featured-item">
-      <a href="article.html?slug=${article.slug}">
-        <img src="${article.image}" alt="${article.title}" loading="lazy">
+    <li class="featured-item" role="listitem">
+      <a href="article.html?slug=${slug}" aria-hidden="true" tabindex="-1">
+        <img src="${image}" alt="" loading="lazy">
       </a>
-      <h2><a href="article.html?slug=${article.slug}">${article.title}</a></h2>
-      <p class="meta">${article.author} · ${formatDate(article.date)}</p>
-      <p class="excerpt">${article.excerpt}</p>
+      <h2><a href="article.html?slug=${slug}">${title}</a></h2>
+      <p class="meta">${author} · ${renderDate(article.date)}</p>
+      <p class="excerpt">${excerpt}</p>
     </li>
   `;
 }
@@ -72,6 +113,8 @@ function renderFeaturedItem(article) {
  * @returns {string} HTML
  */
 function renderContentBlocks(blocks) {
+  if (!Array.isArray(blocks) || blocks.length === 0) return '';
+
   return blocks
     .map((block) => {
       switch (block.type) {
@@ -81,14 +124,18 @@ function renderContentBlocks(blocks) {
         case 'heading': {
           const level = block.level || 2;
           const tag = `h${Math.min(Math.max(level, 2), 4)}`;
-          return `<${tag}>${block.text}</${tag}>`;
+          return `<${tag}>${escapeHTML(block.text)}</${tag}>`;
         }
 
-        case 'image':
+        case 'image': {
+          const alt = escapeHTML(block.alt || '');
+          const src = escapeHTML(block.src || '');
+          const caption = block.caption ? `<figcaption>${escapeHTML(block.caption)}</figcaption>` : '';
           return `<figure>
-            <img src="${block.src}" alt="${block.alt || ''}" loading="lazy">
-            ${block.caption ? `<figcaption>${block.caption}</figcaption>` : ''}
+            <img src="${src}" alt="${alt}" loading="lazy">
+            ${caption}
           </figure>`;
+        }
 
         case 'list': {
           const items = block.items.map((item) => `<li>${item}</li>`).join('');
@@ -96,11 +143,15 @@ function renderContentBlocks(blocks) {
           return `<${tag}>${items}</${tag}>`;
         }
 
-        case 'quote':
+        case 'quote': {
+          const cite = block.author
+            ? `<cite>— ${escapeHTML(block.author)}</cite>`
+            : '';
           return `<blockquote>
             <p>${block.text}</p>
-            ${block.author ? `<cite>— ${block.author}</cite>` : ''}
+            ${cite}
           </blockquote>`;
+        }
 
         default:
           return '';
