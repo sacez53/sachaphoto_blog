@@ -309,6 +309,101 @@ function Remove-Article {
 }
 
 # ============================================================
+#  SYNCHRONISER articles.json depuis les fichiers individuels
+# ============================================================
+function Sync-Articles {
+    Write-Host ''
+    Write-Host '  === Synchroniser articles.json ===' -ForegroundColor Cyan
+    Write-Host ''
+
+    $articlesDir = Join-Path (Get-Location) 'data\articles'
+    if (-not (Test-Path $articlesDir)) {
+        Write-Host '  Aucun dossier data\articles trouve.' -ForegroundColor Red
+        return
+    }
+
+    $jsonFiles = Get-ChildItem -Path $articlesDir -Filter '*.json' -File
+    if ($jsonFiles.Count -eq 0) {
+        Write-Host '  Aucun fichier JSON trouve dans data\articles\.' -ForegroundColor Yellow
+        Save-ArticlesList @()
+        Write-Host '  articles.json vide.' -ForegroundColor DarkGray
+        return
+    }
+
+    # Charger la liste actuelle pour comparer
+    $oldList = Read-ArticlesList
+    $oldMap = @{}
+    foreach ($a in $oldList) { $oldMap[$a.slug] = $a }
+
+    # Reconstruire depuis les fichiers individuels
+    $newList = [System.Collections.ArrayList]::new()
+    $updated = @()
+
+    foreach ($file in $jsonFiles) {
+        try {
+            $content = [System.IO.File]::ReadAllText($file.FullName, [System.Text.UTF8Encoding]::new($false))
+            $article = $content | ConvertFrom-Json
+
+            $entry = [ordered]@{
+                slug      = $article.slug
+                title     = $article.title
+                author    = $article.author
+                date      = $article.date
+                featured  = [bool]$article.featured
+                important = [bool]$article.important
+                excerpt   = $article.excerpt
+                image     = $article.image
+            }
+            $newList.Add($entry) | Out-Null
+
+            # Detecter les changements
+            $slug = $article.slug
+            if ($oldMap.ContainsKey($slug)) {
+                $old = $oldMap[$slug]
+                $changes = @()
+                if ($old.title -ne $article.title)     { $changes += "titre" }
+                if ($old.author -ne $article.author)   { $changes += "auteur" }
+                if ($old.date -ne $article.date)       { $changes += "date" }
+                if ($old.excerpt -ne $article.excerpt) { $changes += "extrait" }
+                if ($old.image -ne $article.image)     { $changes += "image" }
+                if ([bool]$old.featured -ne [bool]$article.featured)   { $changes += "a la une" }
+                if ($changes.Count -gt 0) {
+                    $updated += "  ~ $($article.title) ($($changes -join ', '))"
+                }
+            } else {
+                $updated += "  + $($article.title) (nouveau)"
+            }
+        } catch {
+            Write-Host "  Erreur de syntaxe JSON ignoree dans le fichier : $($file.Name)" -ForegroundColor Red
+            Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
+        }
+    }
+
+    # Détecter les articles supprimés
+    $newSlugs = $newList | ForEach-Object { $_.slug }
+    foreach ($slug in $oldMap.Keys) {
+        if ($slug -notin $newSlugs) {
+            $updated += "  - $($oldMap[$slug].title) (retire)"
+        }
+    }
+
+    Save-ArticlesList $newList
+
+    if ($updated.Count -gt 0) {
+        Write-Host '  Modifications detectees :' -ForegroundColor Green
+        foreach ($line in $updated) {
+            Write-Host $line -ForegroundColor DarkGray
+        }
+    } else {
+        Write-Host '  Aucune modification detectee, tout est a jour.' -ForegroundColor DarkGray
+    }
+
+    Write-Host ''
+    Write-Host "  articles.json synchronise ($($newList.Count) article(s))." -ForegroundColor Green
+    Write-Host ''
+}
+
+# ============================================================
 #  MENU PRINCIPAL
 # ============================================================
 function Show-Menu {
@@ -320,7 +415,8 @@ function Show-Menu {
         Write-Host ''
         Write-Host '  1. Creer un article'
         Write-Host '  2. Supprimer un article'
-        Write-Host '  3. Quitter'
+        Write-Host '  3. Synchroniser articles.json'
+        Write-Host '  4. Quitter'
         Write-Host ''
 
         $choice = Read-Host '  Choix'
@@ -328,7 +424,8 @@ function Show-Menu {
         switch ($choice) {
             '1' { New-Article }
             '2' { Remove-Article }
-            '3' {
+            '3' { Sync-Articles }
+            '4' {
                 Write-Host ''
                 Write-Host '  A bientot !' -ForegroundColor Cyan
                 Write-Host ''
@@ -343,3 +440,4 @@ function Show-Menu {
 
 # Lancer le menu
 Show-Menu
+

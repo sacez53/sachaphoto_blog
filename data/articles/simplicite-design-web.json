@@ -1,61 +1,61 @@
 {
-  "slug": "simplicite-design-web",
-  "title": "L'art de la simplicité dans le design web",
-  "author": "Sacha",
-  "date": "2026-06-10",
-  "featured": true,
-  "important": true,
-  "excerpt": "Pourquoi les sites les plus efficaces sont souvent les plus simples, et comment la contrainte nourrit la créativité.",
-  "image": "assets/images/simplicite-design-web.png",
-  "content": [
-    {
-      "type": "paragraph",
-      "text": "Il y a quelque chose de profondément satisfaisant dans un site web qui ne contient rien de superflu. Pas d'animation qui distrait, pas de pop-up qui s'impose, pas de carrousel qui défile tout seul. Juste du texte, de l'espace, et peut-être une image ou deux."
-    },
-    {
-      "type": "heading",
-      "level": 2,
-      "text": "Le mythe de la complexité"
-    },
-    {
-      "type": "paragraph",
-      "text": "On associe souvent la qualité d'un site à sa richesse visuelle. Plus il y a d'effets, plus le design semble abouti. Pourtant, les sites qui traversent le mieux l'épreuve du temps sont presque toujours les plus sobres. Pensez aux premiers blogs, aux pages personnelles bien écrites : leur force venait du contenu, pas du décor."
-    },
-    {
-      "type": "quote",
-      "text": "La perfection est atteinte, non pas lorsqu'il n'y a plus rien à ajouter, mais lorsqu'il n'y a plus rien à retirer.",
-      "author": "Antoine de Saint-Exupéry"
-    },
-    {
-      "type": "heading",
-      "level": 2,
-      "text": "Ce que la contrainte apporte"
-    },
-    {
-      "type": "paragraph",
-      "text": "Quand on s'interdit les frameworks lourds et les bibliothèques à la mode, on est forcé de réfléchir à l'essentiel. Chaque ligne de CSS doit justifier sa présence. Chaque élément HTML doit avoir un rôle clair. Ce processus de réduction est un excellent exercice de design."
-    },
-    {
-      "type": "list",
-      "items": [
-        "Moins de code signifie moins de bugs et une maintenance plus simple.",
-        "Un site léger se charge plus vite, partout, pour tout le monde.",
-        "Un design épuré met en valeur le contenu au lieu de le noyer.",
-        "La simplicité rend le site plus accessible par défaut."
-      ]
-    },
-    {
-      "type": "heading",
-      "level": 2,
-      "text": "Trouver le juste milieu"
-    },
-    {
-      "type": "paragraph",
-      "text": "La simplicité ne signifie pas l'absence de design. Il s'agit plutôt de trouver le point exact où chaque ajout visuel apporte de la valeur sans créer de bruit. Une bonne typographie, des marges confortables, une hiérarchie claire : voilà les outils d'un design qui dure."
-    },
-    {
-      "type": "paragraph",
-      "text": "Ce blog en est un exemple : pas de framework, pas de build tool, juste du HTML, du CSS et un peu de JavaScript. Et pourtant, il est agréable à lire, rapide à charger, et facile à maintenir. Parfois, moins est vraiment plus."
-    }
-  ]
+    "slug":  "simplicite-design-web",
+    "title":  "L\u0027art de la simplicité dans le design web",
+    "author":  "Sacha",
+    "date":  "2026-06-10",
+    "featured":  false,
+    "important":  false,
+    "excerpt":  "Pourquoi les sites les plus efficaces sont souvent les plus simples, et comment la contrainte nourrit la créativité.",
+    "image":  "assets/images/simplicite-design-web.png",
+    "content":  [
+                    {
+                        "type":  "paragraph",
+                        "text":  "Il y a quelque chose de profondément satisfaisant dans un site web qui ne contient rien de superflu. Pas d\u0027animation qui distrait, pas de pop-up qui s\u0027impose, pas de carrousel qui défile tout seul. Juste du texte, de l\u0027espace, et peut-être une image ou deux."
+                    },
+                    {
+                        "type":  "heading",
+                        "level":  2,
+                        "text":  "Le mythe de la complexité"
+                    },
+                    {
+                        "type":  "paragraph",
+                        "text":  "On associe souvent la qualité d\u0027un site à sa richesse visuelle. Plus il y a d\u0027effets, plus le design semble abouti. Pourtant, les sites qui traversent le mieux l\u0027épreuve du temps sont presque toujours les plus sobres. Pensez aux premiers blogs, aux pages personnelles bien écrites : leur force venait du contenu, pas du décor."
+                    },
+                    {
+                        "type":  "quote",
+                        "text":  "La perfection est atteinte, non pas lorsqu\u0027il n\u0027y a plus rien à ajouter, mais lorsqu\u0027il n\u0027y a plus rien à retirer.",
+                        "author":  "Antoine de Saint-Exupéry"
+                    },
+                    {
+                        "type":  "heading",
+                        "level":  2,
+                        "text":  "Ce que la contrainte apporte"
+                    },
+                    {
+                        "type":  "paragraph",
+                        "text":  "Quand on s\u0027interdit les frameworks lourds et les bibliothèques à la mode, on est forcé de réfléchir à l\u0027essentiel. Chaque ligne de CSS doit justifier sa présence. Chaque élément HTML doit avoir un rôle clair. Ce processus de réduction est un excellent exercice de design."
+                    },
+                    {
+                        "type":  "list",
+                        "items":  [
+                                      "Moins de code signifie moins de bugs et une maintenance plus simple.",
+                                      "Un site léger se charge plus vite, partout, pour tout le monde.",
+                                      "Un design épuré met en valeur le contenu au lieu de le noyer.",
+                                      "La simplicité rend le site plus accessible par défaut."
+                                  ]
+                    },
+                    {
+                        "type":  "heading",
+                        "level":  2,
+                        "text":  "Trouver le juste milieu"
+                    },
+                    {
+                        "type":  "paragraph",
+                        "text":  "La simplicité ne signifie pas l\u0027absence de design. Il s\u0027agit plutôt de trouver le point exact où chaque ajout visuel apporte de la valeur sans créer de bruit. Une bonne typographie, des marges confortables, une hiérarchie claire : voilà les outils d\u0027un design qui dure."
+                    },
+                    {
+                        "type":  "paragraph",
+                        "text":  "Ce blog en est un exemple : pas de framework, pas de build tool, juste du HTML, du CSS et un peu de JavaScript. Et pourtant, il est agréable à lire, rapide à charger, et facile à maintenir. Parfois, moins est vraiment plus."
+                    }
+                ]
 }

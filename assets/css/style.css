@@ -307,6 +307,7 @@ section {
 /* Contenu de l'article */
 .article-content p {
   margin-bottom: 1.25rem;
+  text-align: justify;
 }
 
 .article-content h2 {
