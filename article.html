@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Lecture d'un article du blog.">
+  <title>Blog — Article</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+  <!-- ===== EN-TÊTE ===== -->
+  <header class="site-header">
+    <div class="container">
+      <span class="site-title"><a href="index.html">Blog</a></span>
+      <nav class="site-nav">
+        <a href="index.html">Accueil</a>
+        <a href="articles.html">Articles</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- Image hero de l'article -->
+    <div class="article-hero" id="article-hero"></div>
+
+    <!-- En-tête de l'article : titre + méta -->
+    <header class="article-header" id="article-header"></header>
+
+    <!-- Contenu de l'article (généré dynamiquement) -->
+    <article class="article-content" id="article-content">
+      <p>Chargement…</p>
+    </article>
+
+  </main>
+
+  <!-- ===== PIED DE PAGE ===== -->
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 Blog. Tous droits réservés.</p>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script src="assets/js/article.js"></script>
+
+</body>
+</html>

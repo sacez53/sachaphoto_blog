@@ -1,0 +1,73 @@
+{
+  "slug": "apprendre-coder-2026",
+  "title": "Apprendre à coder en 2026 : par où commencer ?",
+  "author": "Sacha",
+  "date": "2026-06-01",
+  "featured": false,
+  "important": false,
+  "excerpt": "Le paysage du développement évolue vite. Voici un guide honnête pour ceux qui veulent s'y mettre aujourd'hui.",
+  "image": "assets/images/apprendre-coder-2026.png",
+  "content": [
+    {
+      "type": "paragraph",
+      "text": "Si vous lisez cet article, c'est probablement que vous envisagez d'apprendre à programmer. Peut-être par curiosité, peut-être par nécessité professionnelle, ou peut-être simplement parce que l'idée de créer quelque chose à partir de rien vous attire. Quelle que soit la raison, voici quelques pistes concrètes."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Choisir un premier langage"
+    },
+    {
+      "type": "paragraph",
+      "text": "Le choix du premier langage est souvent source d'hésitation. En réalité, ce choix importe moins qu'on ne le pense. L'important est de commencer. Cela dit, certains langages sont plus adaptés aux débutants que d'autres."
+    },
+    {
+      "type": "list",
+      "items": [
+        "<strong>JavaScript</strong> — Incontournable pour le web, utilisable aussi bien côté client que serveur.",
+        "<strong>Python</strong> — Syntaxe claire et lisible, idéal pour les scripts, l'automatisation et la data.",
+        "<strong>HTML / CSS</strong> — Techniquement pas des langages de programmation, mais essentiels pour comprendre le web."
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Les erreurs classiques du débutant"
+    },
+    {
+      "type": "paragraph",
+      "text": "La plus fréquente est de vouloir tout apprendre en même temps. React, Node, TypeScript, Docker, les tests, le CI/CD… C'est un chemin sûr vers l'épuisement. Commencez petit, construisez des projets concrets, et ajoutez de la complexité progressivement."
+    },
+    {
+      "type": "quote",
+      "text": "On n'apprend pas à nager en lisant un livre sur la natation. Il faut se jeter à l'eau."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Construire plutôt que consommer"
+    },
+    {
+      "type": "paragraph",
+      "text": "Les tutoriels sont un bon point de départ, mais ils deviennent vite un piège. Le fameux « tutorial hell » : on enchaîne les cours sans jamais rien construire de personnel. La meilleure façon d'apprendre, c'est de créer un projet qui vous intéresse — un petit site, un outil, un jeu — et de résoudre les problèmes au fur et à mesure."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Ressources recommandées"
+    },
+    {
+      "type": "list",
+      "items": [
+        "MDN Web Docs — La référence pour HTML, CSS et JavaScript.",
+        "freeCodeCamp — Des cours gratuits et structurés avec des exercices pratiques.",
+        "The Odin Project — Un parcours complet pour devenir développeur web.",
+        "Exercism — Des exercices de code avec mentorat dans de nombreux langages."
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "Le plus important, au fond, est de rester curieux et patient. La programmation est un apprentissage continu, et chaque projet terminé est une victoire. Bonne route."
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Un blog simple et minimaliste. Articles sur le web, le code et la simplicité.">
+  <title>Blog — Accueil</title>
+  <!-- Police Inter depuis Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+  <!-- ===== EN-TÊTE ===== -->
+  <!-- Modifier le nom du blog et les liens de navigation ici -->
+  <header class="site-header">
+    <div class="container">
+      <span class="site-title"><a href="index.html">Blog</a></span>
+      <nav class="site-nav">
+        <a href="index.html">Accueil</a>
+        <a href="articles.html">Articles</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- ===== ARTICLES MIS EN AVANT ===== -->
+    <section>
+      <p class="section-title">À la une</p>
+      <ul class="featured-list" id="featured-list">
+        <!-- Rempli dynamiquement par index.js -->
+      </ul>
+    </section>
+
+    <!-- ===== ARTICLES RÉCENTS ===== -->
+    <section>
+      <p class="section-title">Articles récents</p>
+      <ul class="articles-grid articles-grid--three" id="recent-list">
+        <!-- Rempli dynamiquement par index.js -->
+      </ul>
+    </section>
+
+  </main>
+
+  <!-- ===== PIED DE PAGE ===== -->
+  <!-- Modifier le texte du footer ici -->
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 Blog. Tous droits réservés.</p>
+    </div>
+  </footer>
+
+  <!-- Scripts : main.js (utilitaires) puis index.js (logique de la page) -->
+  <script src="assets/js/main.js"></script>
+  <script src="assets/js/index.js"></script>
+
+</body>
+</html>

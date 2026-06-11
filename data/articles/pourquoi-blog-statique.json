@@ -1,0 +1,66 @@
+{
+  "slug": "pourquoi-blog-statique",
+  "title": "Pourquoi j'ai choisi un blog statique",
+  "author": "Sacha",
+  "date": "2026-06-05",
+  "featured": true,
+  "important": false,
+  "excerpt": "Pas de base de données, pas de CMS, juste des fichiers. Retour sur un choix technique assumé.",
+  "image": "assets/images/pourquoi-blog-statique.png",
+  "content": [
+    {
+      "type": "paragraph",
+      "text": "Quand j'ai décidé de créer ce blog, la première question a été : quel outil utiliser ? WordPress ? Ghost ? Un générateur statique comme Hugo ou Eleventy ? J'ai finalement choisi la solution la plus simple possible : des fichiers HTML, un peu de CSS, du JavaScript vanilla, et des articles stockés en JSON."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Pas de serveur, pas de problème"
+    },
+    {
+      "type": "paragraph",
+      "text": "Un site statique ne nécessite aucun serveur applicatif. Pas de PHP, pas de Node.js en production, pas de base de données à administrer. Les fichiers sont servis tels quels par n'importe quel hébergement, même le plus basique. Le résultat est un site rapide, sécurisé et pratiquement impossible à faire tomber."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Le JSON comme format d'article"
+    },
+    {
+      "type": "paragraph",
+      "text": "Chaque article est un fichier JSON avec un format simple et prévisible. Un titre, un auteur, une date, une image, et un tableau de blocs de contenu. Ce format est facile à lire, facile à modifier, et peut être interprété par n'importe quel script JavaScript."
+    },
+    {
+      "type": "quote",
+      "text": "Le meilleur outil est celui que l'on maîtrise parfaitement, pas celui qui a le plus de fonctionnalités."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Les avantages au quotidien"
+    },
+    {
+      "type": "list",
+      "items": [
+        "Écrire un article revient à créer un fichier JSON et l'ajouter à la liste.",
+        "Aucune mise à jour de sécurité à surveiller.",
+        "Le site peut être versionné entièrement avec Git.",
+        "L'hébergement est gratuit ou presque (GitHub Pages, Netlify, etc.).",
+        "Le code source est transparent et modifiable par n'importe qui."
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Ce que je perds, et pourquoi ça me va"
+    },
+    {
+      "type": "paragraph",
+      "text": "Bien sûr, cette approche a ses limites. Pas de commentaires intégrés, pas de recherche côté serveur, pas d'interface d'administration. Mais pour un blog personnel où je publie quelques articles par mois, ces compromis sont largement acceptables."
+    },
+    {
+      "type": "paragraph",
+      "text": "L'essentiel est là : un endroit simple pour écrire et partager des idées, sans dépendance externe, sans complexité inutile. Et c'est exactement ce que je cherchais."
+    }
+  ]
+}
