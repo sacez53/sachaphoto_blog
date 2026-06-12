@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Un blog simple et minimaliste. Articles sur le web, le code et la simplicité.">
   <title>Blog — Accueil</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <!-- Police Inter depuis Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,16 +19,7 @@
 
   <!-- ===== EN-TÊTE ===== -->
   <!-- Modifier le nom du blog et les liens de navigation ici -->
-  <header class="site-header">
-    <div class="container">
-      <span class="site-title"><a href="index.html">Blog</a></span>
-      <nav class="site-nav" aria-label="Navigation principale">
-        <a href="index.html" aria-current="page">Accueil</a>
-        <a href="articles.html">Articles</a>
-        <a href="a-propos.html">À propos</a>
-      </nav>
-    </div>
-  </header>
+  <header class="site-header"></header>
 
   <main class="container" id="main-content">
 
@@ -45,19 +37,19 @@
       <ul class="articles-grid articles-grid--three" id="recent-list" role="list" aria-busy="true">
         <li class="loading-indicator" aria-hidden="true">Chargement…</li>
       </ul>
-      <p class="see-more"><a href="articles.html">Voir tous les articles →</a></p>
+      <p class="see-more">
+        <a href="articles.html">
+          Voir tous les articles
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+      </p>
     </section>
 
   </main>
 
   <!-- ===== PIED DE PAGE ===== -->
   <!-- Modifier le texte du footer ici -->
-  <footer class="site-footer">
-    <div class="container footer-content">
-      <svg class="footer-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
-      <p>&copy; 2026 Blog. Tous droits réservés.</p>
-    </div>
-  </footer>
+  <footer class="site-footer"></footer>
 
   <!-- Scripts : main.js (utilitaires) puis index.js (logique de la page) -->
   <script src="assets/js/main.js"></script>

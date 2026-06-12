@@ -1,15 +1,5 @@
 [
     {
-        "slug":  "apprendre-coder-2026",
-        "title":  "Apprendre à coder en 2026 : par où commencer ?",
-        "author":  "Sacha",
-        "date":  "2026-06-01",
-        "featured":  false,
-        "important":  false,
-        "excerpt":  "Le paysage du développement évolue vite. Voici un guide honnête pour ceux qui veulent s\u0027y mettre aujourd\u0027hui.",
-        "image":  "assets/images/apprendre-coder-2026.png"
-    },
-    {
         "slug":  "prise-de-parole-pour-le-vivant",
         "title":  "Prise de parole pour le vivant !",
         "author":  "Sacha G. Photographe",
@@ -18,15 +8,5 @@
         "important":  true,
         "excerpt":  "Prise de parole pour le vivant suite au visionage du documentaire de Vicent Verzat",
         "image":  "assets/images/prise-de-parole-pour-le-vivant.png"
-    },
-    {
-        "slug":  "simplicite-design-web",
-        "title":  "L\u0027art de la simplicité dans le design web",
-        "author":  "Sacha",
-        "date":  "2026-06-10",
-        "featured":  false,
-        "important":  false,
-        "excerpt":  "Pourquoi les sites les plus efficaces sont souvent les plus simples, et comment la contrainte nourrit la créativité.",
-        "image":  "assets/images/simplicite-design-web.png"
     }
 ]

@@ -159,3 +159,88 @@ function renderContentBlocks(blocks) {
     })
     .join('\n');
 }
+
+/**
+ * Charge dynamiquement les composants partagés (header, footer)
+ */
+async function loadComponents() {
+  try {
+    // Charger le header
+    const headerEl = document.querySelector('.site-header');
+    if (headerEl) {
+      const headerRes = await fetch('components/header.html');
+      if (headerRes.ok) {
+        headerEl.innerHTML = await headerRes.text();
+        
+        // Gérer le lien actif
+        const currentPath = window.location.pathname;
+        const currentFile = currentPath.split('/').pop() || 'index.html';
+        const navLinks = headerEl.querySelectorAll('.site-nav a');
+        navLinks.forEach(link => {
+          const href = link.getAttribute('href');
+          if (href === currentFile || (currentFile === '' && href === 'index.html')) {
+            link.setAttribute('aria-current', 'page');
+          } else {
+            link.removeAttribute('aria-current');
+          }
+        });
+      }
+    }
+
+    // Charger le footer
+    const footerEl = document.querySelector('.site-footer');
+    if (footerEl) {
+      const footerRes = await fetch('components/footer.html');
+      if (footerRes.ok) {
+        footerEl.innerHTML = await footerRes.text();
+      }
+    }
+  } catch (error) {
+    console.error('Erreur lors du chargement des composants:', error);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadComponents);
+
+// --- Gestionnaire d'événements global (délégation) ---
+document.addEventListener('click', (e) => {
+  // Bascule du widget auteur
+  const toggleBtn = e.target.closest('.author-widget-toggle');
+  if (toggleBtn) {
+    const card = document.getElementById('author-id-card');
+    if (card) {
+      const isHidden = card.hasAttribute('hidden');
+      if (isHidden) {
+        card.removeAttribute('hidden');
+        toggleBtn.setAttribute('aria-expanded', 'true');
+      } else {
+        card.setAttribute('hidden', '');
+        toggleBtn.setAttribute('aria-expanded', 'false');
+      }
+    }
+    return;
+  }
+  
+  // Fermeture via la croix
+  const closeBtn = e.target.closest('.author-card-close');
+  if (closeBtn) {
+    const card = document.getElementById('author-id-card');
+    const toggle = document.querySelector('.author-widget-toggle');
+    if (card) {
+      card.setAttribute('hidden', '');
+      if (toggle) toggle.setAttribute('aria-expanded', 'false');
+    }
+    return;
+  }
+  
+  // Fermeture au clic en dehors du widget
+  const widget = e.target.closest('.author-widget');
+  if (!widget) {
+    const card = document.getElementById('author-id-card');
+    const toggle = document.querySelector('.author-widget-toggle');
+    if (card && !card.hasAttribute('hidden')) {
+      card.setAttribute('hidden', '');
+      if (toggle) toggle.setAttribute('aria-expanded', 'false');
+    }
+  }
+});
