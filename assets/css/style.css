@@ -537,7 +537,7 @@ section {
   line-height: 1;
   color: #999;
   cursor: pointer;
-  padding: 0.25rem;
+  padding: 0.10rem;
 }
 
 .author-card-close:hover {
