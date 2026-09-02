@@ -409,9 +409,9 @@ function Sync-Articles {
 function Show-Menu {
     while ($true) {
         Write-Host ''
-        Write-Host '  ========================================' -ForegroundColor Cyan
-        Write-Host '       Gestionnaire d''articles — Blog'      -ForegroundColor Cyan
-        Write-Host '  ========================================' -ForegroundColor Cyan
+        Write-Host '  ===================================================' -ForegroundColor Cyan
+        Write-Host '       Gestionnaire d''articles - Sachaphoto_Blog'      -ForegroundColor Cyan
+        Write-Host '  ===================================================' -ForegroundColor Cyan
         Write-Host ''
         Write-Host '  1. Creer un article'
         Write-Host '  2. Supprimer un article'
