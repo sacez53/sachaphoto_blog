@@ -1,15 +1,5 @@
 [
     {
-        "slug":  "lorem-ipsum",
-        "title":  "Lorem Ipsum",
-        "author":  "Sacha GUITTER",
-        "date":  "2026-09-09T10:15",
-        "featured":  false,
-        "important":  false,
-        "excerpt":  "Lorem Ipsum",
-        "image":  "assets/images/lorem-ipsum.png"
-    },
-    {
         "slug":  "prise-de-parole-pour-le-vivant",
         "title":  "Prise de parole pour le vivant !",
         "author":  "Sacha G. Photographe",
