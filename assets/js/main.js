@@ -9,9 +9,9 @@
  */
 function escapeHTML(str) {
   if (typeof str !== 'string') return '';
-  const div = document.createElement('div');
-  div.appendChild(document.createTextNode(str));
-  return div.innerHTML;
+  return str.replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[character]);
 }
 
 /**
@@ -25,6 +25,19 @@ async function fetchJSON(url) {
   return response.json();
 }
 
+/** Valide le catalogue avant son affichage. */
+async function fetchArticles() {
+  const articles = await fetchJSON('data/articles.json');
+  if (!Array.isArray(articles)) throw new Error('Catalogue des articles invalide.');
+  return articles.filter((article) => article &&
+    typeof article.slug === 'string' && /^[a-zA-Z0-9-]+$/.test(article.slug) &&
+    typeof article.title === 'string' && article.title.trim());
+}
+
+function articleTimestamp(article) {
+  return Date.parse(article.date) || 0;
+}
+
 /**
  * Formate une date ISO en format lisible français.
  * Supporte les dates simples ("2026-06-10") et avec heure ("2026-06-10T14:30").
@@ -32,8 +45,10 @@ async function fetchJSON(url) {
  * @returns {string}
  */
 function formatDate(dateStr) {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr; // Date invalide → retourne la chaîne brute
+  if (typeof dateStr !== 'string') return '';
+  // Une date sans heure représente un jour local, pas minuit UTC.
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? `${dateStr}T00:00:00` : dateStr);
+  if (isNaN(d.getTime())) return dateStr;
 
   const options = { day: 'numeric', month: 'long', year: 'numeric' };
 
@@ -52,7 +67,7 @@ function formatDate(dateStr) {
  * @returns {string} HTML avec balise <time>.
  */
 function renderDate(dateStr) {
-  return `<time datetime="${escapeHTML(dateStr)}">${formatDate(dateStr)}</time>`;
+  return `<time datetime="${escapeHTML(dateStr)}">${escapeHTML(formatDate(dateStr))}</time>`;
 }
 
 /**
@@ -117,12 +132,13 @@ function renderContentBlocks(blocks) {
 
   return blocks
     .map((block) => {
+      if (!block || typeof block !== 'object') return '';
       switch (block.type) {
         case 'paragraph':
-          return `<p>${block.text}</p>`;
+          return `<p>${escapeHTML(block.text)}</p>`;
 
         case 'heading': {
-          const level = block.level || 2;
+          const level = Number.isInteger(block.level) ? block.level : 2;
           const tag = `h${Math.min(Math.max(level, 2), 4)}`;
           return `<${tag}>${escapeHTML(block.text)}</${tag}>`;
         }
@@ -138,7 +154,8 @@ function renderContentBlocks(blocks) {
         }
 
         case 'list': {
-          const items = block.items.map((item) => `<li>${item}</li>`).join('');
+          const items = (Array.isArray(block.items) ? block.items : [])
+            .map((item) => `<li>${escapeHTML(item)}</li>`).join('');
           const tag = block.ordered ? 'ol' : 'ul';
           return `<${tag}>${items}</${tag}>`;
         }
@@ -148,7 +165,7 @@ function renderContentBlocks(blocks) {
             ? `<cite>— ${escapeHTML(block.author)}</cite>`
             : '';
           return `<blockquote>
-            <p>${block.text}</p>
+            <p>${escapeHTML(block.text)}</p>
             ${cite}
           </blockquote>`;
         }
@@ -164,83 +181,80 @@ function renderContentBlocks(blocks) {
  * Charge dynamiquement les composants partagés (header, footer)
  */
 async function loadComponents() {
-  try {
-    // Charger le header
-    const headerEl = document.querySelector('.site-header');
-    if (headerEl) {
-      const headerRes = await fetch('components/header.html');
-      if (headerRes.ok) {
-        headerEl.innerHTML = await headerRes.text();
-        
-        // Gérer le lien actif
-        const currentPath = window.location.pathname;
-        const currentFile = currentPath.split('/').pop() || 'index.html';
-        const navLinks = headerEl.querySelectorAll('.site-nav a');
-        navLinks.forEach(link => {
-          const href = link.getAttribute('href');
-          if (href === currentFile || (currentFile === '' && href === 'index.html')) {
-            link.setAttribute('aria-current', 'page');
-          } else {
-            link.removeAttribute('aria-current');
-          }
-        });
-      }
+  async function load(selector, url, fallback) {
+    const element = document.querySelector(selector);
+    if (!element) return;
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Erreur ${response.status} : ${url}`);
+      element.innerHTML = await response.text();
+    } catch (error) {
+      console.error('Erreur lors du chargement des composants :', error);
+      element.innerHTML = fallback;
     }
-
-    // Charger le footer
-    const footerEl = document.querySelector('.site-footer');
-    if (footerEl) {
-      const footerRes = await fetch('components/footer.html');
-      if (footerRes.ok) {
-        footerEl.innerHTML = await footerRes.text();
-      }
-    }
-  } catch (error) {
-    console.error('Erreur lors du chargement des composants:', error);
   }
+
+  // Chaque composant reste disponible même si l'autre requête échoue.
+  await Promise.all([
+    load('.site-header', 'components/header.html',
+      '<div class="container"><span class="site-title"><a href="index.html">Sacha G. Photographe</a></span><nav class="site-nav" aria-label="Navigation principale"><a href="index.html">Accueil</a><a href="articles.html">Articles</a></nav></div>'),
+    load('.site-footer', 'components/footer.html',
+      '<div class="container footer-content"><p>&copy; 2026 <b>Sacha G. Photographe</b>. Tous droits réservés.</p></div>')
+  ]);
+
+  const currentFile = window.location.pathname.split('/').pop() || 'index.html';
+  document.querySelectorAll('.site-header .site-nav a').forEach((link) => {
+    if (link.getAttribute('href') === currentFile) {
+      link.setAttribute('aria-current', 'page');
+    } else {
+      link.removeAttribute('aria-current');
+    }
+  });
 }
 
 document.addEventListener('DOMContentLoaded', loadComponents);
 
-// --- Gestionnaire d'événements global (délégation) ---
-document.addEventListener('click', (e) => {
-  // Bascule du widget auteur
-  const toggleBtn = e.target.closest('.author-widget-toggle');
-  if (toggleBtn) {
+function closeAuthorCard(restoreFocus = false) {
+  const card = document.getElementById('author-id-card');
+  const toggle = document.querySelector('.author-widget-toggle');
+  if (!card || card.hidden) return;
+  card.hidden = true;
+  if (toggle) {
+    toggle.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) toggle.focus();
+  }
+}
+
+// Délégation : fonctionne aussi pour le pied de page chargé après la page.
+document.addEventListener('click', (event) => {
+  const toggle = event.target.closest('.author-widget-toggle');
+  if (toggle) {
     const card = document.getElementById('author-id-card');
-    if (card) {
-      const isHidden = card.hasAttribute('hidden');
-      if (isHidden) {
-        card.removeAttribute('hidden');
-        toggleBtn.setAttribute('aria-expanded', 'true');
-      } else {
-        card.setAttribute('hidden', '');
-        toggleBtn.setAttribute('aria-expanded', 'false');
-      }
+    if (!card) return;
+    if (card.hidden) {
+      card.hidden = false;
+      toggle.setAttribute('aria-expanded', 'true');
+      card.querySelector('.author-card-close')?.focus();
+    } else {
+      closeAuthorCard();
     }
     return;
   }
-  
-  // Fermeture via la croix
-  const closeBtn = e.target.closest('.author-card-close');
-  if (closeBtn) {
-    const card = document.getElementById('author-id-card');
-    const toggle = document.querySelector('.author-widget-toggle');
-    if (card) {
-      card.setAttribute('hidden', '');
-      if (toggle) toggle.setAttribute('aria-expanded', 'false');
-    }
-    return;
+  if (event.target.closest('.author-card-close')) {
+    closeAuthorCard(true);
+  } else if (!event.target.closest('.author-widget')) {
+    closeAuthorCard();
   }
-  
-  // Fermeture au clic en dehors du widget
-  const widget = e.target.closest('.author-widget');
-  if (!widget) {
-    const card = document.getElementById('author-id-card');
-    const toggle = document.querySelector('.author-widget-toggle');
-    if (card && !card.hasAttribute('hidden')) {
-      card.setAttribute('hidden', '');
-      if (toggle) toggle.setAttribute('aria-expanded', 'false');
-    }
+});
+
+document.addEventListener('keydown', (event) => {
+  const card = document.getElementById('author-id-card');
+  if (event.key === 'Escape' && card && !card.hidden) {
+    event.preventDefault();
+    closeAuthorCard(true);
   }
+});
+
+document.addEventListener('focusin', (event) => {
+  if (!event.target.closest('.author-widget')) closeAuthorCard();
 });

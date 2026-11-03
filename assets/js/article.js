@@ -28,6 +28,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     const article = await fetchJSON(`data/articles/${encodeURIComponent(slug)}.json`);
 
+    if (!article || typeof article.title !== 'string' || !article.title.trim()) {
+      throw new Error('Article invalide.');
+    }
+
     // Mettre à jour le titre de la page
     document.title = `${article.title} — Blog`;
 
@@ -53,7 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Contenu de l'article
-    if (articleEl && article.content) {
+    if (articleEl && Array.isArray(article.content) && article.content.length > 0) {
       articleEl.innerHTML = renderContentBlocks(article.content);
     } else if (articleEl) {
       articleEl.innerHTML = '<p>Cet article ne contient pas de contenu.</p>';
@@ -79,7 +83,7 @@ function showError(container, message) {
   container.innerHTML = `
     <div class="error-message" role="alert">
       <h2>Oups !</h2>
-      <p>${message}</p>
+      <p>${escapeHTML(message)}</p>
       <p><a href="index.html">← Retour à l'accueil</a></p>
     </div>
   `;

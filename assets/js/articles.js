@@ -8,10 +8,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const list = document.getElementById('all-articles-list');
 
   try {
-    const articles = await fetchJSON('data/articles.json');
+    const articles = await fetchArticles();
 
     // Tri du plus récent au plus ancien
-    articles.sort((a, b) => new Date(b.date) - new Date(a.date));
+    articles.sort((a, b) => articleTimestamp(b) - articleTimestamp(a));
 
     if (list) {
       if (articles.length > 0) {

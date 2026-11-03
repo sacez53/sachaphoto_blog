@@ -10,12 +10,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const recentList = document.getElementById('recent-list');
 
   try {
-    const articles = await fetchJSON('data/articles.json');
+    const articles = await fetchArticles();
 
     // --- 1 seul article mis en avant (le plus important ou le premier featured) ---
     const featured = articles
       .filter((a) => a.important || a.featured)
-      .sort((a, b) => (b.important ? 1 : 0) - (a.important ? 1 : 0));
+      .sort((a, b) => (b.important ? 1 : 0) - (a.important ? 1 : 0) || articleTimestamp(b) - articleTimestamp(a));
     if (featuredList) {
       if (featured.length > 0) {
         featuredList.innerHTML = renderFeaturedItem(featured[0]);
@@ -29,13 +29,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const featuredSlug = featured.length > 0 ? featured[0].slug : null;
     const recent = [...articles]
       .filter((a) => a.slug !== featuredSlug)
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .sort((a, b) => articleTimestamp(b) - articleTimestamp(a))
       .slice(0, 3);
     if (recentList) {
       if (recent.length > 0) {
         recentList.innerHTML = recent.map(renderArticleCard).join('');
       } else {
-        recentList.innerHTML = '<li>Aucun article publié pour le moment.</li>';
+        recentList.innerHTML = featuredSlug
+          ? '<li>Aucun autre article publié pour le moment.</li>'
+          : '<li>Aucun article publié pour le moment.</li>';
       }
       recentList.removeAttribute('aria-busy');
     }

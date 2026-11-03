@@ -1,0 +1,160 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const fs = require('node:fs');
+const path = require('node:path');
+
+function setup(elements = {}, fetch = async () => { throw new Error('offline'); }) {
+  const events = {};
+  const document = {
+    title: '',
+    addEventListener: (name, callback) => (events[name] ??= []).push(callback),
+    getElementById: (id) => elements[id] || null,
+    querySelector: (selector) => elements[selector] || null,
+    querySelectorAll: () => [],
+  };
+  const context = vm.createContext({ document, fetch, URLSearchParams,
+    window: { location: { pathname: '/sachaphoto_blog/', search: '' } },
+    console: { error() {} } });
+  function run(file) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../assets/js', file), 'utf8'), context);
+  }
+  run('main.js');
+  return { context, events, document, run };
+}
+function element() {
+  return { innerHTML: '', busy: true, removeAttribute() { this.busy = false; } };
+}
+
+test('les textes et les attributs échappent le HTML', () => {
+  const { context: c } = setup();
+  assert.equal(c.escapeHTML('<img onerror="x"> & \'test\''), '&lt;img onerror=&quot;x&quot;&gt; &amp; &#39;test&#39;');
+  assert.ok(!c.renderDate('<img src=x onerror=x>').includes('<img'));
+});
+
+test('les dates sans heure conservent le jour dans tous les fuseaux', () => {
+  const { context: c } = setup();
+  assert.equal(c.formatDate('2026-06-12'), '12 juin 2026');
+  assert.equal(c.formatDate(null), '');
+});
+
+test('les blocs incomplets ne bloquent pas les autres blocs et leur texte reste inerte', () => {
+  const { context: c } = setup();
+  const html = c.renderContentBlocks([null, { type: 'list' },
+    { type: 'paragraph', text: '<script>alert(1)</script>' },
+    { type: 'heading', level: 'bad', text: 'Titre' },
+    { type: 'list', items: ['<img src=x onerror=x>'] },
+    { type: 'quote', text: '<iframe>test</iframe>' }]);
+  assert.ok(html.includes('<h2>Titre</h2>'));
+  assert.ok(html.includes('&lt;script&gt;'));
+  assert.ok(!/<script|<img|<iframe|hNaN/.test(html));
+});
+
+test('le catalogue écarte les entrées illisibles', async () => {
+  const { context: c } = setup({}, async () => ({ ok: true, json: async () => [null,
+    { slug: '../bad', title: 'Bad' }, { slug: 'ok', title: 'Titre' }] }));
+  assert.equal((await c.fetchArticles()).length, 1);
+});
+
+test('un catalogue non-tableau est signalé', async () => {
+  const { context: c } = setup({}, async () => ({ ok: true, json: async () => ({}) }));
+  await assert.rejects(c.fetchArticles(), /Catalogue/);
+});
+
+test('une panne de l’en-tête ne bloque pas le pied de page', async () => {
+  const header = element(), footer = element();
+  const { context: c } = setup({ '.site-header': header, '.site-footer': footer }, async (url) => {
+    if (url.includes('header')) throw new Error('offline');
+    return { ok: true, text: async () => '<p>Pied de page chargé</p>' };
+  });
+  await c.loadComponents();
+  assert.ok(header.innerHTML.includes('articles.html'));
+  assert.ok(footer.innerHTML.includes('Pied de page chargé'));
+});
+
+test('les composants sont demandés en parallèle', async () => {
+  let releaseHeader;
+  const headerWait = new Promise(resolve => { releaseHeader = resolve; });
+  const calls = [];
+  const { context: c } = setup({ '.site-header': element(), '.site-footer': element() }, async (url) => {
+    calls.push(url);
+    if (url.includes('header')) await headerWait;
+    return { ok: true, text: async () => '' };
+  });
+  const pending = c.loadComponents();
+  assert.equal(calls.length, 2);
+  releaseHeader();
+  await pending;
+});
+
+test('la fiche auteur se ferme avec Échap et rend le focus', () => {
+  const card = { hidden: false };
+  const toggle = { setAttribute(name, value) { this[name] = value; }, focus() { this.focused = true; } };
+  const { events } = setup({ 'author-id-card': card, '.author-widget-toggle': toggle });
+  let prevented = false;
+  events.keydown[0]({ key: 'Escape', preventDefault() { prevented = true; } });
+  assert.equal(card.hidden, true);
+  assert.equal(toggle['aria-expanded'], 'false');
+  assert.equal(toggle.focused, true);
+  assert.equal(prevented, true);
+});
+
+test('la fiche auteur s’ouvre au bouton et se ferme quand le focus sort', () => {
+  const close = { focus() { this.focused = true; } };
+  const card = { hidden: true, querySelector: () => close };
+  const toggle = { setAttribute(name, value) { this[name] = value; } };
+  const { events } = setup({ 'author-id-card': card, '.author-widget-toggle': toggle });
+  events.click[0]({ target: { closest: selector => selector === '.author-widget-toggle' ? toggle : null } });
+  assert.equal(card.hidden, false);
+  assert.equal(close.focused, true);
+  events.focusin[0]({ target: { closest: () => null } });
+  assert.equal(card.hidden, true);
+});
+
+test('un article à la une seul ne fait pas annoncer un blog vide', async () => {
+  const featured = element(), recent = element();
+  const { events, run } = setup({ 'featured-list': featured, 'recent-list': recent }, async () => ({
+    ok: true, json: async () => [{ slug: 'premier', title: 'Titre', featured: true, date: '2026-06-12' }]
+  }));
+  run('index.js');
+  await events.DOMContentLoaded[1]();
+  assert.ok(featured.innerHTML.includes('Titre'));
+  assert.ok(recent.innerHTML.includes('Aucun autre article'));
+  assert.equal(recent.busy, false);
+});
+
+test('une panne du catalogue termine les états de chargement', async () => {
+  const list = element();
+  const { events, run } = setup({ 'all-articles-list': list });
+  run('articles.js');
+  await events.DOMContentLoaded[1]();
+  assert.ok(list.innerHTML.includes('Impossible de charger'));
+  assert.equal(list.busy, false);
+});
+
+test('les slugs absents et invalides ne déclenchent aucune requête', async () => {
+  for (const search of ['', '?slug=../secret']) {
+    const main = element(), article = element();
+    let requests = 0;
+    const { context: c, events, run } = setup({ 'main-content': main, 'article-content': article }, async () => { requests++; });
+    c.window.location.search = search;
+    run('article.js');
+    await events.DOMContentLoaded[1]();
+    assert.equal(requests, 0);
+    assert.ok(article.innerHTML.includes('role="alert"'));
+    assert.equal(main.busy, false);
+  }
+});
+
+test('l’article réel et ses neuf paragraphes restent lisibles', async () => {
+  const data = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/articles/prise-de-parole-pour-le-vivant.json'), 'utf8'));
+  const main = element(), article = element(), header = element(), hero = element();
+  const { context: c, events, document, run } = setup({ 'main-content': main, 'article-content': article,
+    'article-header': header, 'article-hero': hero }, async () => ({ ok: true, json: async () => data }));
+  c.window.location.search = '?slug=prise-de-parole-pour-le-vivant';
+  run('article.js');
+  await events.DOMContentLoaded[1]();
+  assert.equal((article.innerHTML.match(/<p>/g) || []).length, 9);
+  assert.ok(document.title.includes(data.title));
+  assert.equal(main.busy, false);
+});
