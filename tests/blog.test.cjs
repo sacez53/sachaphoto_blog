@@ -202,3 +202,17 @@ test('une page de partage charge l’article associé sans paramètre', async ()
   assert.equal(requested,'data/articles/mon-article.json');
   assert.ok(article.innerHTML.includes('Texte'));
 });
+test('les galeries affichent les images et échappent les descriptions', () => {
+  const {context:c} = setup();
+  const html = c.renderContentBlocks([{type:'gallery',images:[{src:'assets/images/photo.jpg',alt:'<test>',caption:'Matin & brume'}]}]);
+  assert.ok(html.includes('class="photo-gallery"'));
+  assert.ok(html.includes('href="assets/images/photo.jpg"'));
+  assert.ok(html.includes('alt="&lt;test&gt;"'));
+  assert.ok(html.includes('Matin &amp; brume'));
+});
+test('les articles liés sont classés par pertinence et excluent les autres sujets', () => {
+  const {context:c} = setup();
+  const article = {slug:'courant',category:'Nature',tags:['Forêt']};
+  const related = c.selectRelatedArticles(article,[article,{slug:'cat',category:'nature',date:'2026-01-01'},{slug:'tag',tags:['forêt'],date:'2026-02-01'},{slug:'autre',category:'Portrait'}]);
+  assert.deepEqual(Array.from(related, x => x.slug),['cat','tag']);
+});

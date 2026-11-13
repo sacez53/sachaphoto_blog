@@ -7,6 +7,7 @@
     "start": "node _manager/launch.mjs",
     "serve": "node _manager/server.mjs",
     "test": "node --test tests/*.test.cjs tests/*.test.mjs",
+    "check-site": "node _manager/check-cli.mjs",
     "build": "node _manager/build.mjs"
   },
   "engines": { "node": ">=22" }

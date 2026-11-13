@@ -37,6 +37,8 @@ jobs:
           node-version: '22'
       - name: Test
         run: npm test
+      - name: Check published content
+        run: npm run check-site
       - name: Prepare public files
         run: npm run build
       - name: Setup Pages

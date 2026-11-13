@@ -5,6 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { createStore, UserError } from './store.mjs';
 import { projectRoot, publicPages, build, zipSite } from './build.mjs';
+import { checkSite } from './check.mjs';
 
 const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp',
@@ -54,6 +55,7 @@ export async function startServer({ root = projectRoot, port = 4899 } = {}) {
           if (url.pathname === '/api/media') return send(200, store.listMedia());
           if (url.pathname === '/api/settings') return send(200, store.getSettings());
           if (url.pathname === '/api/history') return send(200, store.history());
+          if (url.pathname === '/api/check') return send(200, checkSite(store));
           throw new UserError('Action introuvable.', 404);
         }
         if (!['POST', 'PUT', 'DELETE'].includes(request.method)) throw new UserError('Méthode refusée.', 405);

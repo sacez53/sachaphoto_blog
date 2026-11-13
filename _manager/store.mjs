@@ -176,6 +176,12 @@ export function createStore(root) {
             if (![2, 3, 4].includes(block.level)) fail(`${label} : niveau de titre invalide.`);
             return { type: block.type, level: block.level, text: text(block.text, label, 500, true), format };
           case 'image': return { type: block.type, src: mediaPath(block.src, false), alt: text(block.alt, label, 1000), caption: text(block.caption, label, 2000) };
+          case 'gallery':
+            if (!Array.isArray(block.images) || block.images.length < 1 || block.images.length > 50) fail(`${label} : choisissez entre 1 et 50 images.`);
+            return { type: block.type, images: block.images.map(image => {
+              if (!image || typeof image !== 'object') fail(`${label} : image invalide.`);
+              return { src: mediaPath(image.src, false), alt: text(image.alt, label, 1000), caption: text(image.caption, label, 2000) };
+            }) };
           case 'quote': return { type: block.type, text: text(block.text, label), author: text(block.author, label, 200), format };
           case 'list':
             if (!Array.isArray(block.items) || block.items.length > 300) fail(`${label} : liste invalide.`);
@@ -259,7 +265,7 @@ export function createStore(root) {
   function references(media, articles = articleNames().map(getArticle), settings = getSettings()) {
     const result = [];
     for (const article of articles) {
-      if (article.image === media || article.content?.some(block => block.src === media)) result.push(`${article.title}${article.status === 'draft' ? ' (brouillon)' : ''}`);
+      if (article.image === media || article.content?.some(block => block.src === media || block.images?.some(image => image.src === media))) result.push(`${article.title}${article.status === 'draft' ? ' (brouillon)' : ''}`);
     }
     if (settings.avatar === media) result.push('Portrait de l’auteur');
     if (settings.favicon === media) result.push('Icône du blog');
@@ -347,7 +353,7 @@ export function createStore(root) {
     for (const [relative, value] of changes) {
       if (!value || !relative.endsWith('.json') || relative === 'data/articles.json') continue;
       const content = JSON.parse(value.toString('utf8'));
-      const images = [content.image, content.avatar, content.favicon, ...(content.content || []).map(b => b.src)].filter(Boolean);
+      const images = [content.image, content.avatar, content.favicon, ...(content.content || []).flatMap(b => [b.src, ...(b.images || []).map(image => image.src)])].filter(Boolean);
       for (const image of images) if (!(changes.has(image) ? changes.get(image) : bytes(image))) fail('Une image de cette sauvegarde manque. Restaurez d’abord l’image correspondante.', 409);
     }
     commit(`Restauration : ${manifest.label}`, changes);

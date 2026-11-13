@@ -166,7 +166,7 @@ window.addEventListener('hashchange', () => run(route));
 function renderArticles() {
   const published = state.articles.filter(a => a.status === 'published').length;
   workspace.innerHTML = pageHeading('VOTRE JOURNAL', 'Les articles', 'Écrivez vos récits et retrouvez vos articles.',
-    button('export', 'Exporter le site') + button('new-article', '<span aria-hidden="true">＋</span> Nouvel article', '', 'primary')) +
+    button('check-site', 'Vérifier le site') + button('export', 'Exporter le site') + button('new-article', '<span aria-hidden="true">＋</span> Nouvel article', '', 'primary')) +
     `<div class="stats"><div><strong>${published}</strong> article${published > 1 ? 's' : ''} dans le blog</div><div><strong>${state.articles.length - published}</strong> brouillon${state.articles.length - published > 1 ? 's' : ''}</div><span class="stats-note">Le contenu de votre blog, au même endroit.</span></div>
     <div class="filters"><div class="tabs" aria-label="Filtrer les articles">${[['all','Tous les articles'],['published','Dans le blog'],['draft','Brouillons']].map(([value,label]) => button('filter-articles', label, `data-value="${value}" aria-pressed="${state.filter === value}"`)).join('')}</div><label class="search"><span class="visually-hidden">Rechercher un article</span><input id="article-search" type="search" placeholder="Rechercher un article…" value="${esc(state.search)}"></label></div><div id="article-results"></div><p class="footnote">« Dans le blog » signifie que l’article est présent dans les fichiers du site. Les brouillons restent privés sur cet ordinateur.</p>`;
   renderArticleResults();
@@ -183,17 +183,20 @@ function renderArticleResults() {
 function newBlock(type) {
   if (type === 'heading') return { type, level: 2, text: '', format: 'markdown' };
   if (type === 'image') return { type, src: '', alt: '', caption: '' };
+  if (type === 'gallery') return { type, images: [] };
   if (type === 'list') return { type, items: [''], ordered: false, format: 'markdown' };
   if (type === 'quote') return { type, text: '', author: '', format: 'markdown' };
   return { type: 'paragraph', text: '', format: 'markdown' };
 }
 function blockHTML(block, index) {
-  const labels = { paragraph: 'Paragraphe', heading: 'Titre de section', image: 'Image', list: 'Liste', quote: 'Citation' };
+  const labels = { paragraph: 'Paragraphe', heading: 'Titre de section', image: 'Image', gallery: 'Galerie photo', list: 'Liste', quote: 'Citation' };
   const type = block.type;
   let body = '';
   if (type === 'image') {
     body = `${block.src ? `<img src="${esc(imageURL(block.src))}" alt="${esc(block.alt)}">` : ''}${button('block-image', block.src ? 'Changer l’image' : 'Choisir ou importer une image', `data-index="${index}"`, block.src ? 'small' : 'image-placeholder')}
       <label>Description de l’image<input data-block="${index}" data-prop="alt" value="${esc(block.alt)}" placeholder="Ce que montre la photo" maxlength="1000"></label><label>Légende <span class="muted">(facultatif)</span><input data-block="${index}" data-prop="caption" value="${esc(block.caption)}" maxlength="2000"></label>`;
+  } else if (type === 'gallery') {
+    body = `<p class="field-hint">Ajoutez jusqu’à 50 photos. Un clic sur une photo du blog l’ouvre en grand dans un nouvel onglet.</p><div class="gallery-editor">${(block.images || []).map((image, photo) => `<div class="gallery-entry"><img src="${esc(imageURL(image.src))}" alt=""><div><label>Description de la photo ${photo + 1}<input data-gallery="${index}" data-photo="${photo}" data-photo-field="alt" value="${esc(image.alt)}" maxlength="1000" placeholder="Ce que montre la photo"></label><label>Légende de la photo ${photo + 1}<input data-gallery="${index}" data-photo="${photo}" data-photo-field="caption" value="${esc(image.caption)}" maxlength="2000"></label><div class="actions">${button('gallery-up','↑',`data-index="${index}" data-photo="${photo}" aria-label="Monter la photo ${photo + 1}" ${photo === 0 ? 'disabled' : ''}`,'small')}${button('gallery-down','↓',`data-index="${index}" data-photo="${photo}" aria-label="Descendre la photo ${photo + 1}" ${photo === block.images.length - 1 ? 'disabled' : ''}`,'small')}${button('gallery-remove','Retirer',`data-index="${index}" data-photo="${photo}" aria-label="Retirer la photo ${photo + 1}"`,'small')}</div></div></div>`).join('')}</div>${button('gallery-add','＋ Ajouter une photo',`data-index="${index}"`, 'small')}`;
   } else {
     const value = type === 'list' ? block.items.join('\n') : block.text;
     body = `<div class="formatbar">${button('format-bold', '<b>G</b>', `data-index="${index}" aria-label="Mettre la sélection en gras"`)}${button('format-italic', '<i>I</i>', `data-index="${index}" aria-label="Mettre la sélection en italique"`)}${button('format-link', 'Lien', `data-index="${index}"`)}<span>Gras, italique et liens visibles dans l’aperçu</span></div>
@@ -208,7 +211,7 @@ function renderEditor() {
   const a = state.editor;
   workspace.innerHTML = `<a class="back-link" href="#/articles">← Tous les articles</a><div class="page-heading editor-heading"><div><h1>${state.original ? 'Modifier l’article' : 'Nouvel article'}</h1><div class="save-state" id="save-state">${state.dirty ? 'Saisie récupérée · Modifications non enregistrées' : state.original ? 'Toutes les modifications sont enregistrées' : 'Un espace pour votre prochain récit'}</div></div><div class="actions">${button('preview', 'Aperçu')}${button('save-article', 'Enregistrer', '', 'primary')}</div></div>
     <div class="editor-grid"><div><div class="panel"><label class="field">Titre de l’article<input class="title-input" id="article-title" data-field="title" value="${esc(a.title)}" placeholder="Donnez un titre à votre récit" maxlength="250" required></label><label class="field">Résumé<textarea data-field="excerpt" placeholder="Quelques lignes pour donner envie de lire l’article…" maxlength="1000">${esc(a.excerpt)}</textarea></label><p class="field-hint">Le résumé apparaît sur l’accueil et dans la liste des articles.</p></div>
-    <div class="editor-content-title"><h2>Le contenu</h2><span>Construisez votre article par blocs</span></div><div id="blocks"></div><div class="add-block"><span>AJOUTER À VOTRE RÉCIT</span><div class="actions">${[['paragraph','＋ Paragraphe'],['heading','Titre de section'],['image','Image'],['list','Liste'],['quote','Citation']].map(([value,label]) => button('add-block', label, `data-type="${value}"`)).join('')}</div></div><div id="word-count" class="word-count"></div></div>
+    <div class="editor-content-title"><h2>Le contenu</h2><span>Construisez votre article par blocs</span></div><div id="blocks"></div><div class="add-block"><span>AJOUTER À VOTRE RÉCIT</span><div class="actions">${[['paragraph','＋ Paragraphe'],['heading','Titre de section'],['image','Image'],['gallery','Galerie photo'],['list','Liste'],['quote','Citation']].map(([value,label]) => button('add-block', label, `data-type="${value}"`)).join('')}</div></div><div id="word-count" class="word-count"></div></div>
     <aside class="editor-aside"><div class="panel"><h2>Enregistrement</h2><label class="field">Présence sur le site<select data-field="status"><option value="draft" ${a.status === 'draft' ? 'selected' : ''}>Brouillon privé</option><option value="published" ${a.status === 'published' ? 'selected' : ''}>Dans le blog</option></select></label><label class="field">Date de l’article<input type="datetime-local" data-field="date" value="${esc(a.date.slice(0,16).length === 10 ? a.date + 'T12:00' : a.date.slice(0,16))}" required></label><label class="field">Auteur<input data-field="author" value="${esc(a.author)}" maxlength="150" required></label><label class="check-label"><input type="checkbox" data-field="featured" ${a.featured ? 'checked' : ''}>Mettre à la une</label><p class="field-hint">Un seul article à la une. Le précédent restera dans la liste des articles.</p></div>
     <div class="panel"><h2>Image de couverture</h2><div id="cover-preview">${coverHTML(a.image)}</div><div class="actions">${button('choose-cover', 'Choisir une image', '', 'small')}${button('remove-cover', 'Retirer', `id="remove-cover" ${!a.image ? 'disabled' : ''}`, 'small')}</div><p class="field-hint">Choisissez une photo de la médiathèque ou importez-la depuis votre ordinateur.</p></div>
     <div class="panel"><h2>Classement et partage</h2><label class="field">Catégorie<input data-field="category" value="${esc(a.category || '')}" maxlength="80" placeholder="Photographie animalière"></label><label class="field">Mots-clés<input data-field="tags" value="${esc((a.tags || []).join(', '))}" placeholder="nature, forêt, photographie"></label><p class="field-hint">Séparez les mots-clés par une virgule.</p>${button('share-preview','Aperçu du partage','','small')}</div>
@@ -321,6 +324,14 @@ function renderHistory(items) {
     '<p class="footnote">Une restauration crée elle aussi une sauvegarde. Pour revenir plus loin, annulez d’abord les opérations récentes sur les mêmes fichiers.</p>';
 }
 
+async function showSiteCheck(forExport = false) {
+  const report = await api('check');
+  const errors = report.issues.filter(issue => issue.severity === 'error').length;
+  const warnings = report.issues.length - errors;
+  const list = report.issues.length ? report.issues.map(issue => `<div class="check-item ${issue.severity === 'error' ? 'error' : ''}"><strong>${issue.severity === 'error' ? 'À corriger' : 'À vérifier'} · ${esc(issue.title)}</strong><span>${esc(issue.detail)}</span>${issue.slug && state.articles.some(a => a.slug === issue.slug) ? ` ${button('check-edit','Ouvrir l’article',`data-slug="${esc(issue.slug)}"`,'small')}` : ''}</div>`).join('') : '<p>Aucun problème détecté dans les points vérifiés.</p>';
+  openModal(`<div class="dialog-header"><h2 id="modal-title">Vérification du site</h2>${button('cancel-dialog','Fermer')}</div><p class="dialog-copy">${report.published} article(s) dans le blog · ${report.drafts} brouillon(s) · ${errors} erreur(s) · ${warnings} point(s) à vérifier</p><div class="check-results">${list}</div><p class="field-hint">Contrôle des articles enregistrés, des images locales et des descriptions. Les liens externes ne sont pas vérifiés (${report.externalLinks} repéré(s)). Les brouillons ne sont pas exportés.</p>${forExport ? `<div class="dialog-footer">${button('cancel-dialog','Revenir')}${button('export-confirmed',report.issues.length ? 'Exporter quand même' : 'Exporter le site','','primary')}</div>` : ''}`);
+}
+
 document.addEventListener('input', event => {
   const target = event.target;
   if (target.id === 'article-search') { state.search = target.value; renderArticleResults(); }
@@ -340,17 +351,23 @@ document.addEventListener('input', event => {
     block[key] = key === 'items' ? target.value.split('\n') : key === 'level' ? Number(target.value) : target.type === 'checkbox' ? target.checked : target.value;
     autosize(target); markDirty();
   }
+  if (target.dataset.gallery !== undefined && state.editor) {
+    state.editor.content[Number(target.dataset.gallery)].images[Number(target.dataset.photo)][target.dataset.photoField] = target.value;
+    markDirty();
+  }
   if (target.dataset.setting) { state.settings[target.dataset.setting] = target.value; markDirty(); }
 });
 document.addEventListener('change', event => {
   const target = event.target;
   if (target.dataset.prop === 'type' && state.editor) {
     const index = Number(target.dataset.block), previous = state.editor.content[index];
+    if (previous.type === 'gallery' && previous.images.length) { target.value = 'gallery'; toast('Retirez les photos avant de changer le type de ce bloc.', true); return; }
     const next = newBlock(target.value);
     const text = previous.text || previous.items?.join('\n') || previous.caption || '';
     if ('text' in next) next.text = text;
     if (next.type === 'list') next.items = text.split('\n');
     if (next.type === 'image') next.caption = text;
+    if (next.type === 'gallery' && previous.type === 'image' && previous.src) next.images.push({src:previous.src,alt:previous.alt,caption:previous.caption});
     state.editor.content[index] = next;
     markDirty(); renderBlocks(index);
   }
@@ -398,12 +415,23 @@ document.addEventListener('click', event => {
         if (state.editor.content.length >= 500) throw new Error('La limite de 500 blocs est atteinte.');
         state.editor.content.push(newBlock(control.dataset.type)); markDirty(); renderBlocks(state.editor.content.length - 1); return;
       }
+      if (action.startsWith('gallery-')) {
+        const i = Number(index), photos = state.editor.content[i].images, photo = Number(control.dataset.photo);
+        if (action === 'gallery-add') {
+          if (photos.length >= 50) throw new Error('Une galerie peut contenir 50 photos au maximum.');
+          await chooseImage(path => { photos.push({src:path, alt:'', caption:''}); markDirty(); renderBlocks(); }); return;
+        }
+        if (action === 'gallery-remove') photos.splice(photo,1);
+        if (action === 'gallery-up' && photo > 0) [photos[photo-1],photos[photo]] = [photos[photo],photos[photo-1]];
+        if (action === 'gallery-down' && photo < photos.length-1) [photos[photo+1],photos[photo]] = [photos[photo],photos[photo+1]];
+        markDirty(); renderBlocks(); return;
+      }
       if (action.startsWith('block-')) {
         const i = Number(index), blocks = state.editor.content;
         if (action === 'block-image') { await chooseImage(path => { blocks[i].src = path; markDirty(); renderBlocks(); }); return; }
         if (action === 'block-delete') {
           const block = blocks[i];
-          if ((block.text || block.src || block.items?.join('')) && !await ask('Supprimer ce bloc ?', 'Le bloc sera retiré de votre saisie. La dernière version enregistrée reste dans les sauvegardes.', 'Supprimer', true)) return;
+          if ((block.text || block.src || block.items?.join('') || block.images?.length) && !await ask('Supprimer ce bloc ?', 'Le bloc sera retiré de votre saisie. La dernière version enregistrée reste dans les sauvegardes.', 'Supprimer', true)) return;
           blocks.splice(i, 1);
         }
         if (action === 'block-copy') blocks.splice(i+1,0,structuredClone(blocks[i]));
@@ -474,12 +502,17 @@ document.addEventListener('click', event => {
         if (!await ask('Annuler cette opération ?', 'Les fichiers concernés retrouveront leur version précédente. Une sauvegarde de leur état actuel sera aussi conservée.', 'Restaurer')) return;
         await api('restore','POST',{ id:control.dataset.id }); renderHistory(await api('history')); state.articles = await api('articles'); updateNav(state.route); toast('La version précédente a été restaurée.'); return;
       }
-      if (action === 'export') {
-        if (state.dirty && !await ask('Exporter la version enregistrée ?', 'Vos dernières modifications ne sont pas enregistrées. Elles ne seront pas présentes dans cette archive.', 'Exporter')) return;
+      if (action === 'check-edit') { const target = control.dataset.slug; closeModal(); location.hash = `/edit/${target}`; return; }
+      if (action === 'check-site' || action === 'export') {
+        if (state.dirty && !await ask('Vérifier la version enregistrée ?', 'Vos dernières modifications ne sont pas enregistrées. La vérification et l’export porteront sur la version enregistrée.', 'Continuer')) return;
+        await showSiteCheck(action === 'export'); return;
+      }
+      if (action === 'export-confirmed') {
         control.disabled = true;
         try {
           const blob = await api('export','POST',{}), url = URL.createObjectURL(blob), link = document.createElement('a');
           link.href = url; link.download = 'sachaphoto-blog.zip'; link.click(); setTimeout(() => URL.revokeObjectURL(url),60000);
+          closeModal();
           toast('Archive téléchargée. Une copie des fichiers publics est aussi disponible dans le dossier dist.');
         } finally { control.disabled = false; }
         return;

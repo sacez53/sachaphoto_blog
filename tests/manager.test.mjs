@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto';
 import { createStore } from '../_manager/store.mjs';
 import { startServer } from '../_manager/server.mjs';
 import { build, publicFiles, zipSite, projectRoot } from '../_manager/build.mjs';
+import { checkSite } from '../_manager/check.mjs';
 
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/2uoAAAAASUVORK5CYII=', 'base64');
 function fixture(t) {
@@ -208,6 +209,28 @@ test('les catégories et mots-clés restent dans l’article et le catalogue', t
   assert.equal(saved.category,'Nature');
   assert.deepEqual(store.catalog()[0].tags,['forêt','oiseaux']);
   assert.throws(() => store.saveArticle(article({slug:'autre',tags:Array(21).fill('mot')})),/20 mots-clés/);
+});
+test('une galerie est enregistrée, protège ses images et reste récupérable', t => {
+  const {store} = fixture(t);
+  const image = store.uploadMedia({name:'galerie.png',data:png.toString('base64')});
+  const saved = store.saveArticle(article({status:'published',content:[{type:'gallery',images:[{src:image.path,alt:'Un oiseau',caption:'Au matin'}]}]}));
+  assert.deepEqual(store.getArticle(saved.slug).content[0].images,[{src:image.path,alt:'Un oiseau',caption:'Au matin'}]);
+  assert.throws(() => store.deleteMedia(image.path,image.revision),/utilisée/);
+  assert.throws(() => store.saveArticle(article({slug:'vide',content:[{type:'gallery',images:[]}]})), /entre 1 et 50/);
+  store.deleteArticle(saved.slug,saved.revision);
+  store.restore(store.history().find(item => item.label.startsWith('Suppression :')).id);
+  assert.equal(store.getArticle(saved.slug).content[0].images[0].caption,'Au matin');
+});
+test('la vérification signale les descriptions manquantes et exclut les brouillons', t => {
+  const {store} = fixture(t);
+  store.saveArticle(article({status:'published',excerpt:'',image:'',content:[{type:'gallery',images:[{src:'assets/images/test.png',alt:'',caption:''}]},{type:'paragraph',text:'[site](https://example.org)',format:'markdown'}]}));
+  store.saveArticle(article({slug:'brouillon',excerpt:'',image:''}));
+  const report = checkSite(store);
+  assert.equal(report.published,1); assert.equal(report.drafts,1); assert.equal(report.externalLinks,1);
+  assert.ok(report.issues.some(issue => issue.detail.includes('résumé')));
+  assert.ok(report.issues.some(issue => issue.detail.includes('couverture')));
+  assert.ok(report.issues.some(issue => issue.detail.includes('lecteurs d’écran')));
+  assert.ok(report.issues.every(issue => issue.slug !== 'brouillon'));
 });
 test('la page À propos conserve ses valeurs après la modification des réglages', t => {
   const {store} = fixture(t);

@@ -15,6 +15,7 @@ Dans « Articles », choisissez « Nouvel article » ou « Modifier ». Renseign
 - Image : choix dans la médiathèque, description et légende.
 - Liste à puces ou numérotée, avec un élément par ligne.
 - Citation avec un nom d’auteur facultatif.
+- Galerie photo : ajoutez des images de la médiathèque, puis réglez leur ordre, leur description et leur légende. Un clic sur une photo ouvre le fichier en grand.
 
 Les flèches déplacent les blocs. Vous pouvez aussi les dupliquer ou les supprimer. « Aperçu » montre le résultat avec le style du blog, sur ordinateur ou mobile. Les marques de gras, d’italique et de lien restent visibles pendant la saisie ; elles sont mises en forme dans l’aperçu et dans l’article.
 
@@ -33,6 +34,12 @@ Cliquez sur une image pour voir ses utilisations, la remplacer ou la supprimer. 
 Dans « Le blog », la section « Page À propos » permet aussi de modifier le titre, la présentation, le parcours et le texte de contact. Séparez les paragraphes par une ligne vide, puis enregistrez les réglages.
 
 Dans chaque article, renseignez une catégorie et des mots-clés séparés par des virgules. Les visiteurs peuvent filtrer la page des articles avec ces champs. Les articles existants restent visibles même sans classement.
+
+La page d’un article propose jusqu’à trois articles liés, choisis parmi les articles publiés qui partagent sa catégorie ou ses mots-clés. Si aucun article ne correspond, la section reste masquée.
+
+« Vérifier le site » contrôle les articles enregistrés avant la mise en ligne. Le rapport signale les fichiers d’image manquants, les descriptions et résumés absents, ainsi que les liens internes vers des articles absents. Les liens externes sont comptés mais ne sont pas vérifiés. La même vérification s’affiche avant l’export ; les brouillons ne sont pas inclus dans le contrôle des articles publiés.
+
+Lors d’un déploiement GitHub Pages, les erreurs de fichiers manquants empêchent le déploiement. Les points à vérifier, comme un résumé manquant, restent des avertissements.
 
 « Aperçu du partage » montre le titre, le résumé et l’image de couverture. Copiez le lien proposé et partagez-le après avoir mis en ligne un nouvel export. Les réseaux sociaux peuvent conserver leur ancienne vignette en cache. L’adresse publique du blog se règle dans « Le blog » ; vérifiez-la si votre hébergement change.
 
@@ -56,6 +63,7 @@ Le workflow GitHub Pages exécute les tests et prépare `dist/` avant le déploi
 npm start       # ouvrir le gestionnaire
 npm run serve   # démarrer le serveur au premier plan
 npm test        # vérifier les articles et le gestionnaire
+npm run check-site # contrôler le contenu publié
 npm run build   # préparer le dossier public dist
 ```
 

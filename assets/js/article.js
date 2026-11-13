@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!slug) {
     showError(articleEl, 'Aucun article spécifié.');
     if (mainEl) mainEl.removeAttribute('aria-busy');
+
     return;
   }
 
@@ -66,6 +67,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Signaler la fin du chargement aux technologies d'assistance
     if (mainEl) mainEl.removeAttribute('aria-busy');
+
+    const relatedSection = document.getElementById('related-articles');
+    const relatedList = document.getElementById('related-list');
+    if (relatedSection && relatedList) {
+      try {
+        const related = selectRelatedArticles(article, await fetchArticles());
+        if (related.length) { relatedList.innerHTML = related.map(renderArticleCard).join(''); relatedSection.hidden = false; }
+      } catch (error) { console.error('Articles liés indisponibles :', error); }
+    }
 
   } catch (err) {
     console.error('Erreur lors du chargement de l\'article :', err);

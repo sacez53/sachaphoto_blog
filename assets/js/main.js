@@ -81,6 +81,17 @@ function articleTimestamp(article) {
   return Date.parse(article.date) || 0;
 }
 
+function selectRelatedArticles(article, articles, limit = 3) {
+  const normalize = value => typeof value === 'string' ? value.trim().toLocaleLowerCase('fr') : '';
+  const category = normalize(article.category);
+  const tags = new Set((Array.isArray(article.tags) ? article.tags : []).map(normalize).filter(Boolean));
+  return (Array.isArray(articles) ? articles : []).filter(item => item && item.slug !== article.slug).map(item => {
+    const otherTags = new Set((Array.isArray(item.tags) ? item.tags : []).map(normalize).filter(Boolean));
+    const score = (category && category === normalize(item.category) ? 2 : 0) + [...tags].filter(tag => otherTags.has(tag)).length;
+    return { item, score };
+  }).filter(result => result.score > 0).sort((a,b) => b.score - a.score || articleTimestamp(b.item) - articleTimestamp(a.item) || String(a.item.slug).localeCompare(String(b.item.slug))).slice(0,limit).map(result => result.item);
+}
+
 /**
  * Formate une date ISO en format lisible français.
  * Supporte les dates simples ("2026-06-10") et avec heure ("2026-06-10T14:30").
@@ -195,6 +206,15 @@ function renderContentBlocks(blocks) {
             <img src="${src}" alt="${alt}" loading="lazy">
             ${caption}
           </figure>`;
+        }
+
+        case 'gallery': {
+          const images = Array.isArray(block.images) ? block.images : [];
+          return `<div class="photo-gallery">${images.filter(image => image && typeof image.src === 'string' && image.src).map(image => {
+            const src = escapeHTML(image.src), alt = escapeHTML(image.alt || '');
+            const caption = image.caption ? `<figcaption>${escapeHTML(image.caption)}</figcaption>` : '';
+            return `<figure><a href="${src}" target="_blank" rel="noopener noreferrer" aria-label="${alt ? `Agrandir : ${alt}` : 'Agrandir la photo'}"><img src="${src}" alt="${alt}" loading="lazy"></a>${caption}</figure>`;
+          }).join('')}</div>`;
         }
 
         case 'list': {

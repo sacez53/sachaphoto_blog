@@ -366,6 +366,14 @@ section {
   text-align: center;
 }
 
+.article-content .photo-gallery { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; margin:1.5rem 0; }
+.article-content .photo-gallery figure { margin:0; min-width:0; }
+.article-content .photo-gallery img { width:100%; aspect-ratio:1; object-fit:cover; margin:0; }
+.article-content .photo-gallery a { display:block; }
+.related-articles { border-top:1px solid #ddd; margin-top:3rem; padding-top:2rem; }
+.related-articles[hidden] { display:none; }
+@media(max-width:600px){.article-content .photo-gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem}}
+
 .article-content blockquote {
   border-left: 3px solid #ccc;
   padding-left: 1.25rem;
