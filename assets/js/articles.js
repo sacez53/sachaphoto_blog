@@ -13,14 +13,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Tri du plus récent au plus ancien
     articles.sort((a, b) => articleTimestamp(b) - articleTimestamp(a));
 
-    if (list) {
-      if (articles.length > 0) {
-        list.innerHTML = articles.map(renderArticleCard).join('');
-      } else {
-        list.innerHTML = '<li>Aucun article publié pour le moment.</li>';
+    const category = document.getElementById('filter-category');
+    const tag = document.getElementById('filter-tag');
+    const choices = (values) => [...new Set(values.filter(value => typeof value === 'string' && value.trim()))].sort((a,b) => a.localeCompare(b, 'fr'));
+    if (category) category.innerHTML += choices(articles.map(article => article.category)).map(value => `<option value="${escapeHTML(value)}">${escapeHTML(value)}</option>`).join('');
+    if (tag) tag.innerHTML += choices(articles.flatMap(article => Array.isArray(article.tags) ? article.tags : [])).map(value => `<option value="${escapeHTML(value)}">${escapeHTML(value)}</option>`).join('');
+    function render() {
+      const visible = articles.filter(article => (!category?.value || article.category === category.value) && (!tag?.value || (Array.isArray(article.tags) && article.tags.includes(tag.value))));
+      if (list) {
+        list.innerHTML = visible.length ? visible.map(renderArticleCard).join('') : `<li>${articles.length ? 'Aucun article ne correspond à ces filtres.' : 'Aucun article publié pour le moment.'}</li>`;
+        list.removeAttribute('aria-busy');
       }
-      list.removeAttribute('aria-busy');
     }
+    category?.addEventListener('change', render);
+    tag?.addEventListener('change', render);
+    render();
   } catch (err) {
     console.error('Erreur lors du chargement des articles :', err);
     if (list) {

@@ -1,0 +1,13 @@
+{
+  "title": "Sacha G. Photographe",
+  "description": "Un blog simple et minimaliste. Articles sur la nature, la photographie et la simplicité.",
+  "author": "Sacha G. Photographe",
+  "role": "Créateur du blog",
+  "bio": "Photographe animalier et évenementiel amateur, le but de ce blog est de partager ma passion pour la photographie et mes expériences.",
+  "footer": "Tous droits réservés.",
+  "email": "sachaguitterphoto@gmail.com",
+  "instagram": "https://www.instagram.com/sacha.guitter.photo/",
+  "github": "https://sacez53.github.io/sachaphoto_blog/",
+  "avatar": "assets/images/author-avatar.jpg",
+  "favicon": "assets/images/favicon.svg"
+}

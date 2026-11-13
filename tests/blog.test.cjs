@@ -146,15 +146,59 @@ test('les slugs absents et invalides ne déclenchent aucune requête', async () 
   }
 });
 
-test('l’article réel et ses neuf paragraphes restent lisibles', async () => {
-  const data = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/articles/prise-de-parole-pour-le-vivant.json'), 'utf8'));
+test('un article chargé affiche ses paragraphes sans dépendre du contenu du blog', async () => {
+  const data = { slug: 'article-de-test', title: 'Article de test', author: 'Auteur', date: '2026-11-13',
+    excerpt: 'Résumé', image: 'assets/images/test.png', content: Array.from({ length: 9 }, (_, i) => ({ type: 'paragraph', text: `Paragraphe ${i + 1}` })) };
   const main = element(), article = element(), header = element(), hero = element();
   const { context: c, events, document, run } = setup({ 'main-content': main, 'article-content': article,
     'article-header': header, 'article-hero': hero }, async () => ({ ok: true, json: async () => data }));
-  c.window.location.search = '?slug=prise-de-parole-pour-le-vivant';
+  c.window.location.search = '?slug=article-de-test';
   run('article.js');
   await events.DOMContentLoaded[1]();
   assert.equal((article.innerHTML.match(/<p>/g) || []).length, 9);
   assert.ok(document.title.includes(data.title));
   assert.equal(main.busy, false);
+});
+
+test('les titres H2, H3 et H4 et la mise en forme de l’éditeur apparaissent dans le blog', () => {
+  const { context: c } = setup();
+  const html = c.renderContentBlocks([
+    { type: 'heading', level: 2, text: 'Section' },
+    { type: 'heading', level: 3, text: 'Sous-section' },
+    { type: 'heading', level: 4, text: 'Détail' },
+    { type: 'paragraph', text: '**Gras** et *italique*\n[lien](https://example.org)', format: 'markdown' }
+  ]);
+  assert.ok(html.includes('<h2>Section</h2>'));
+  assert.ok(html.includes('<h3>Sous-section</h3>'));
+  assert.ok(html.includes('<h4>Détail</h4>'));
+  assert.ok(html.includes('<strong>Gras</strong>'));
+  assert.ok(html.includes('<em>italique</em><br>'));
+  assert.ok(html.includes('href="https://example.org"'));
+});
+test('la mise en forme ne permet pas le HTML ni les liens actifs dangereux', () => {
+  const { context: c } = setup();
+  const html = c.renderBlockText('<script>alert(1)</script> [test](javascript:alert(1)) [x](https://a.test/"onmouseover="alert(1))', 'markdown');
+  assert.ok(!html.includes('<script>'));
+  assert.ok(!html.includes('href="javascript:'));
+  assert.ok(html.includes('&quot;'));
+  assert.equal(c.renderBlockText('**Ancien texte**', 'plain'), '**Ancien texte**');
+});
+
+test('un article sans couverture n’affiche pas d’image cassée', () => {
+  const { context: c } = setup();
+  const article = {slug:'test',title:'Sans image',author:'Auteur',date:'2026-11-13',image:'',excerpt:''};
+  assert.ok(!c.renderArticleCard(article).includes('<img'));
+  assert.ok(!c.renderFeaturedItem(article).includes('<img'));
+});
+test('une page de partage charge l’article associé sans paramètre', async () => {
+  const main = element(), article = element(), header = element(), hero = element();
+  let requested;
+  const data = { title:'Mon article', author:'Auteur', date:'2026-11-13', content:[{type:'paragraph',text:'Texte'}] };
+  const { context:c, events, run } = setup({ 'main-content':main,'article-content':article,'article-header':header,'article-hero':hero }, async url => {
+    requested = url; return {ok:true,json:async () => data};
+  });
+  c.window.location.pathname = '/sachaphoto_blog/partage/mon-article/';
+  run('article.js'); await events.DOMContentLoaded[1]();
+  assert.equal(requested,'data/articles/mon-article.json');
+  assert.ok(article.innerHTML.includes('Texte'));
 });

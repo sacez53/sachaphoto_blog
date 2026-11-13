@@ -1,4 +1,3 @@
 @echo off
-title Nouvel article — Blog
-cd /d "%~dp0"
-powershell -WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File "%~dp0new-article.ps1"
+rem Ancien nom conserve pour les raccourcis existants ; le gestionnaire WPF a ete retire.
+call "%~dp0gerer-blog.bat"

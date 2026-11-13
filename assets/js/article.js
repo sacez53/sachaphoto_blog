@@ -6,7 +6,8 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
   const params = new URLSearchParams(window.location.search);
-  const slug = params.get('slug');
+  const sharePath = window.location.pathname.match(/\/partage\/([a-zA-Z0-9-]+)\/?(?:index\.html)?$/);
+  const slug = params.get('slug') || (sharePath && sharePath[1]);
 
   const mainEl = document.getElementById('main-content');
   const articleEl = document.getElementById('article-content');

@@ -22,6 +22,10 @@
 
     <section aria-labelledby="all-articles-heading">
       <h1 class="section-title" id="all-articles-heading">Tous les articles</h1>
+      <div class="article-filters" aria-label="Filtrer les articles">
+        <label>Catégorie <select id="filter-category"><option value="">Toutes les catégories</option></select></label>
+        <label>Mot-clé <select id="filter-tag"><option value="">Tous les mots-clés</option></select></label>
+      </div>
       <ul class="articles-grid" id="all-articles-list" role="list" aria-busy="true">
         <li class="loading-indicator" aria-hidden="true">Chargement…</li>
       </ul>

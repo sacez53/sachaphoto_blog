@@ -30,12 +30,12 @@
             </div>
 
             <header class="article-header text-center">
-                <h1 class="article-title">À propos de moi</h1>
-                <p class="article-meta">Créateur de ce blog</p>
+                <h1 class="article-title" data-about-title>À propos de moi</h1>
+                <p class="article-meta" data-about-subtitle>Créateur de ce blog</p>
             </header>
 
             <article class="article-content">
-                <p>
+                <div data-about-intro><p>
                     Hello, moi c'est sacha GUITTER.
                 </p>
                 <p>
@@ -45,21 +45,22 @@
                     J'ai créé ce blog pour partager mes découvertes, mes
                     projets, et mes réflexions sur le monde.
                 </p>
-                <h2>Mon parcours</h2>
+                </div><h2 data-about-journey-title>Mon parcours</h2><div data-about-journey>
                 <li>
                     Je suis photographe amateur depuis plusieurs années, avec une passion particulière pour la photo animalière et la photo portraits
                 </li>
                 <li>
                     Je suis aussi en 2eme année de BUT MMI (Métier du multimédia et de l'internet) à Laval en mayenne.
                 </li>
-                <h2>Me contacter</h2>
-                <p>
+                </div><h2 data-about-contact-title>Me contacter</h2>
+                <p data-about-contact>
                     Vous pouvez me retrouver sur les réseaux sociaux ou
                     m'envoyer un email pour échanger sur divers sujets.
                 </p>
 
                 <div class="contact-buttons">
                     <a
+                        data-site-link="email"
                         href="mailto:sachaguitterphoto@gmail.com"
                         class="btn-contact"
                     >
@@ -82,6 +83,7 @@
                         Email
                     </a>
                     <a
+                        data-site-link="instagram"
                         href="https://www.instagram.com/sacha.guitter.photo/"
                         target="_blank"
                         rel="noopener noreferrer"
@@ -114,6 +116,7 @@
                         Instagram
                     </a>
                     <a
+                        data-site-link="github"
                         href="https://sacez53.github.io/sachaphoto_blog/"
                         target="_blank"
                         rel="noopener noreferrer"
