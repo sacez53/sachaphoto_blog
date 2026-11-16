@@ -29,6 +29,12 @@ La saisie d’un article est également conservée dans ce navigateur. Après un
 
 Cliquez sur une image pour voir ses utilisations, la remplacer ou la supprimer. Le remplacement garde son adresse et son format. La suppression est refusée tant que l’image est utilisée par un article, un brouillon ou les réglages. Les visuels de secours présents dans les pages HTML sont également protégés.
 
+Dans « Médiathèque », « Nouvel album » crée un classement par reportage ou projet. Vous pouvez sélectionner des photos puis les ajouter à un album. Une photo peut appartenir à plusieurs albums sans être copiée. Le filtre « Sans album » retrouve les images à classer. Les recherches et les filtres d’utilisation fonctionnent aussi dans un album.
+
+Lorsque vous ouvrez un album, les nouvelles images importées y sont ajoutées. « Retirer de cet album » conserve le fichier dans la médiathèque. Renommer ou supprimer un album ne change pas les images des articles. Le classement est enregistré sur cet ordinateur et peut être restauré depuis « Sauvegardes ».
+
+Dans un bloc « Galerie photo », « Ajouter des photos / un album » permet de filtrer par album puis de sélectionner plusieurs images. Elles sont insérées dans l’ordre de la sélection, avec une limite de 50 photos par galerie. Les albums sont aussi disponibles pour choisir une couverture ou une image de story.
+
 « Le blog » permet de changer le portrait et l’icône du navigateur, le nom du site, sa description, la fiche auteur, les liens de contact et le texte du pied de page.
 
 Dans « Le blog », la section « Page À propos » permet aussi de modifier le titre, la présentation, le parcours et le texte de contact. Séparez les paragraphes par une ligne vide, puis enregistrez les réglages.
@@ -44,6 +50,10 @@ Lors d’un déploiement GitHub Pages, les erreurs de fichiers manquants empêch
 « Aperçu du partage » montre le titre, le résumé et l’image de couverture. Copiez le lien proposé et partagez-le après avoir mis en ligne un nouvel export. Les réseaux sociaux peuvent conserver leur ancienne vignette en cache. L’adresse publique du blog se règle dans « Le blog » ; vérifiez-la si votre hébergement change.
 
 Dans l’éditeur d’un article, « Créer une story » prépare une image PNG verticale de 1080 × 1920 pixels, avec une photo en arrière-plan et le titre de l’article. Vous pouvez changer la photo, son cadrage, les textes et l’ambiance, puis télécharger le visuel. Cette création ne modifie pas l’article. Le lien copié devient utilisable une fois l’article et le nouvel export mis en ligne. Pour un lien cliquable dans la story, ajoutez le sticker « Lien » dans Instagram.
+
+« Créer un carrousel » prépare une proposition à partir du titre et du contenu de l’article. Choisissez un format portrait de 1080 × 1350 pixels ou carré de 1080 × 1080 pixels. Chaque page peut contenir une couverture, une photo avec sa légende ou un extrait de texte. Modifiez son contenu, choisissez son cadrage et déplacez-la avec les flèches. « Ajouter des photos » permet de sélectionner des images dans un album. L’outil accepte de 2 à 20 pages par carrousel.
+
+« Télécharger le carrousel ZIP » regroupe les images PNG numérotées. Extrayez l’archive, puis sélectionnez les images dans cet ordre dans Instagram. Un texte qui dépasse une page bloque le téléchargement jusqu’à sa correction. La préparation reste dans le même navigateur, pour cet article ; « Repartir de l’article » crée une nouvelle proposition. Le carrousel ne modifie pas l’article et n’est pas publié automatiquement sur Instagram.
 
 ## Récupérer une version précédente
 

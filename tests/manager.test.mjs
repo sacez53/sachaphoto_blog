@@ -265,3 +265,89 @@ test('un catalogue illisible ne peut pas être remplacé par une liste vide', t 
   assert.throws(() => store.saveArticle(article({status:'published'})), /JSON invalide/);
   assert.equal(store.bytes('data/articles/un-article.json'),null);
 });
+
+test('les albums persistent, partagent les photos et restent hors de l’export public', t => {
+  const { store, root } = fixture(t), initial = store.getAlbums();
+  assert.deepEqual(initial, { albums: [], revision: null });
+  const saved = store.saveAlbums({ ...initial, albums: [
+    { id: 'sortie', name: 'Sortie photo', images: ['assets/images/test.png', 'assets/images/test.png'] },
+    { id: 'selection', name: 'Sélection', images: ['assets/images/test.png'] }
+  ] });
+  assert.equal(saved.albums[0].images.length, 1);
+  assert.deepEqual(createStore(root).getAlbums(), saved);
+  const renamed = store.saveAlbums({ ...saved, albums: saved.albums.map(album => ({ ...album, name: album.name + ' 2026' })) });
+  store.saveAlbums({ ...renamed, albums: [renamed.albums[1]] });
+  assert.ok(store.bytes('assets/images/test.png'));
+  assert.ok(publicFiles(root).every(name => !name.includes('albums.json')));
+  assert.ok(!zipSite(root).includes(Buffer.from('.blog-manager/albums.json')));
+});
+
+test('les albums refusent les éditions périmées et les références invalides', t => {
+  const { store } = fixture(t), initial = store.getAlbums();
+  store.saveAlbums({ ...initial, albums: [{ id: 'sortie', name: 'Sortie', images: [] }] });
+  assert.throws(() => store.saveAlbums({ ...initial, albums: [] }), /albums ont changé/);
+  const current = store.getAlbums();
+  for (const albums of [
+    [{ id: '../bad', name: 'Sortie', images: [] }], [{ id: 'sortie', name: ' ', images: [] }],
+    [{ id: 'sortie', name: 'Sortie', images: ['assets/images/absente.png'] }],
+    [{ id: 'sortie', name: 'Sortie', images: ['../secret.png'] }],
+    [{ id: 'a', name: 'Sortie', images: [] }, { id: 'b', name: 'SORTIE', images: [] }],
+    [{ id: 'a', name: 'A', images: [] }, { id: 'a', name: 'B', images: [] }]
+  ]) assert.throws(() => store.saveAlbums({ ...current, albums }));
+  assert.deepEqual(store.getAlbums(), current);
+});
+
+test('l’import dans un album est atomique et peut être annulé', t => {
+  const { store } = fixture(t);
+  store.saveAlbums({ ...store.getAlbums(), albums: [{ id: 'sortie', name: 'Sortie', images: [] }] });
+  const imported = store.uploadMedia({ name: 'photo.png', data: png.toString('base64'), albumId: 'sortie' });
+  assert.deepEqual(store.getAlbums().albums[0].images, [imported.path]);
+  store.restore(store.history().find(item => item.label.startsWith('Import')).id);
+  assert.deepEqual(store.getAlbums().albums[0].images, []);
+  assert.equal(store.bytes(imported.path), null);
+  assert.throws(() => store.uploadMedia({ name: 'absent.png', data: png.toString('base64'), albumId: 'absent' }), /n’existe plus/);
+  assert.equal(store.bytes('assets/images/absent.png'), null);
+});
+
+test('supprimer et restaurer une photo restaure aussi ses appartenances aux albums', t => {
+  const { store } = fixture(t), imported = store.uploadMedia({ name: 'photo.png', data: png.toString('base64') });
+  store.saveAlbums({ ...store.getAlbums(), albums: [{ id: 'sortie', name: 'Sortie', images: [imported.path] }] });
+  store.deleteMedia(imported.path, imported.revision);
+  assert.deepEqual(store.getAlbums().albums[0].images, []);
+  store.restore(store.history().find(item => item.label.startsWith('Suppression')).id);
+  assert.deepEqual(store.getAlbums().albums[0].images, [imported.path]);
+  assert.deepEqual(store.bytes(imported.path), png);
+});
+
+test('la restauration ne laisse pas un album avec une image supprimée', t => {
+  const { store } = fixture(t), imported = store.uploadMedia({ name: 'photo.png', data: png.toString('base64') });
+  const upload = store.history().find(item => item.label.startsWith('Import'));
+  store.saveAlbums({ ...store.getAlbums(), albums: [{ id: 'sortie', name: 'Sortie', images: [imported.path] }] });
+  assert.throws(() => store.restore(upload.id), /appartient maintenant à un album/);
+  assert.ok(store.bytes(imported.path));
+});
+
+test('un fichier d’albums corrompu est conservé sans écrasement', t => {
+  const { store, write } = fixture(t);
+  for (const value of ['{broken', '{}', '[{"id":"a","name":"A","images":null}]']) {
+    write('.blog-manager/albums.json', value);
+    assert.throws(() => store.saveAlbums({ revision: null, albums: [] }));
+    assert.equal(store.bytes('.blog-manager/albums.json').toString(), value);
+  }
+});
+
+test('le serveur expose les albums avec protection de session et sert le créateur de carrousels', async t => {
+  const { root, write } = fixture(t);
+  write('_manager/public/carousel.js', fs.readFileSync(path.join(projectRoot, '_manager/public/carousel.js')));
+  const { server, url } = await startServer({ root, port: 0 });
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const base = new URL(url).origin, { token } = await (await fetch(`${base}/api/session`)).json();
+  const initial = await (await fetch(`${base}/api/albums`)).json();
+  const body = JSON.stringify({ ...initial, albums: [{ id: 'sortie', name: 'Sortie', images: [] }] });
+  assert.equal((await fetch(`${base}/api/albums`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body })).status, 403);
+  const response = await fetch(`${base}/api/albums`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Blog-Token': token }, body });
+  assert.equal(response.status, 200); assert.equal((await response.json()).albums[0].name, 'Sortie');
+  assert.equal((await fetch(`${base}/.blog-manager/albums.json`)).status, 404);
+  const script = await fetch(`${base}/manager/carousel.js`);
+  assert.equal(script.status, 200); assert.match(script.headers.get('content-type'), /javascript/);
+});

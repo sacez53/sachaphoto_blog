@@ -8,6 +8,7 @@
   <link rel="icon" href="/assets/images/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/manager/style.css">
   <script src="/assets/js/main.js" defer></script>
+  <script src="/manager/carousel.js" defer></script>
   <script src="/manager/app.js" defer></script>
 </head>
 <body>
@@ -48,6 +49,25 @@
         <p class="field-hint">Pour rendre le lien cliquable, ajoute le sticker « Lien » dans Instagram.</p>
         <div class="story-link"><span id="story-link-text"></span><button type="button" class="small" data-action="story-copy-link">Copier le lien</button></div>
         <p class="field-hint">Ce lien sera accessible après l’enregistrement de l’article dans le blog et la mise en ligne d’un nouvel export.</p>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="carousel-dialog" class="carousel-dialog" aria-labelledby="carousel-title">
+    <div class="dialog-header"><div><h2 id="carousel-title">Créer un carrousel Instagram</h2><p class="field-hint">Une proposition à partir de l’article, à adapter avant le téléchargement.</p></div><button type="button" data-carousel="close">Fermer</button></div>
+    <div class="carousel-layout">
+      <div class="carousel-preview"><canvas id="carousel-canvas" width="1080" height="1350" aria-label="Aperçu de la page du carrousel"></canvas><p id="carousel-status" class="field-hint" role="status" aria-live="polite"></p><button type="button" class="primary" data-carousel="download" id="carousel-download">Télécharger le carrousel ZIP</button><p class="field-hint">Les images PNG sont numérotées dans l’ordre des pages.</p></div>
+      <div class="carousel-controls">
+        <div class="form-grid"><label class="field">Format<select id="carousel-format"><option value="portrait">Portrait · 1080 × 1350</option><option value="square">Carré · 1080 × 1080</option></select></label><label class="field">Ambiance<select id="carousel-theme"><option value="dark">Sombre</option><option value="light">Claire</option></select></label></div>
+        <label class="field">Signature sur toutes les pages<input id="carousel-brand" maxlength="80"></label>
+        <div class="carousel-pages-head"><h3>Les pages</h3><span id="carousel-count"></span></div><div id="carousel-pages" class="carousel-pages" aria-label="Pages du carrousel"></div>
+        <div class="actions carousel-add"><button type="button" class="small" data-carousel="add-photos">Ajouter des photos</button><button type="button" class="small" data-carousel="add-text">Ajouter du texte</button><button type="button" class="text-button" data-carousel="reset">Repartir de l’article</button></div>
+        <section class="carousel-page-editor" aria-labelledby="carousel-current-title"><div class="carousel-pages-head"><h3 id="carousel-current-title"></h3><div class="actions"><button type="button" class="small" data-carousel="earlier" aria-label="Déplacer la page avant">←</button><button type="button" class="small" data-carousel="later" aria-label="Déplacer la page après">→</button><button type="button" class="small" data-carousel="remove">Retirer</button></div></div>
+          <label class="field">Mise en page<select id="carousel-type"><option value="cover">Couverture</option><option value="photo">Photo et légende</option><option value="text">Extrait de texte</option></select></label>
+          <label class="field">Titre de la page<input id="carousel-headline" maxlength="250"></label>
+          <label class="field">Texte ou légende<textarea id="carousel-text" maxlength="800" rows="4"></textarea></label>
+          <div id="carousel-photo-controls"><div class="actions"><button type="button" class="small" data-carousel="image">Changer la photo</button><button type="button" class="small" data-carousel="clear-image">Retirer la photo</button></div><label class="field">Cadrage<select id="carousel-fit"><option value="cover">Remplir le cadre</option><option value="contain">Photo entière</option></select></label><label class="field">Position horizontale<input id="carousel-x" type="range" min="0" max="100" value="50"></label><label class="field">Position verticale<input id="carousel-y" type="range" min="0" max="100" value="50"></label></div>
+        </section>
+        <p class="field-hint">Jusqu’à 20 pages dans cet outil. Le carrousel ne modifie pas l’article. Votre préparation reste dans ce navigateur après fermeture.</p>
       </div>
     </div>
   </dialog>
