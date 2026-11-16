@@ -43,6 +43,8 @@ Lors d’un déploiement GitHub Pages, les erreurs de fichiers manquants empêch
 
 « Aperçu du partage » montre le titre, le résumé et l’image de couverture. Copiez le lien proposé et partagez-le après avoir mis en ligne un nouvel export. Les réseaux sociaux peuvent conserver leur ancienne vignette en cache. L’adresse publique du blog se règle dans « Le blog » ; vérifiez-la si votre hébergement change.
 
+Dans l’éditeur d’un article, « Créer une story » prépare une image PNG verticale de 1080 × 1920 pixels, avec une photo en arrière-plan et le titre de l’article. Vous pouvez changer la photo, son cadrage, les textes et l’ambiance, puis télécharger le visuel. Cette création ne modifie pas l’article. Le lien copié devient utilisable une fois l’article et le nouvel export mis en ligne. Pour un lien cliquable dans la story, ajoutez le sticker « Lien » dans Instagram.
+
 ## Récupérer une version précédente
 
 Chaque opération conserve les fichiers précédents dans `.blog-manager/backups/`. L’écran « Sauvegardes » permet d’annuler une opération. Si ses fichiers ont changé depuis, annulez d’abord les opérations plus récentes qui les concernent. Une restauration est elle-même sauvegardée. Ne supprimez pas ce dossier si vous souhaitez garder cet historique.

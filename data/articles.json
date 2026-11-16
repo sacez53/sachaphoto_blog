@@ -1,12 +1,12 @@
 [
-    {
-        "slug":  "prise-de-parole-pour-le-vivant",
-        "title":  "Prise de parole pour le vivant !",
-        "author":  "Sacha G. Photographe",
-        "date":  "2026-06-12T01:15",
-        "featured":  true,
-        "important":  true,
-        "excerpt":  "Prise de parole pour le vivant suite au visionage du documentaire de Vicent Verzat",
-        "image":  "assets/images/prise-de-parole-pour-le-vivant.png"
-    }
+  {
+    "slug": "prise-de-parole-pour-le-vivant",
+    "title": "Prise de parole pour le vivant !",
+    "author": "Sacha G. Photographe",
+    "date": "2026-06-12T01:15",
+    "featured": true,
+    "important": true,
+    "excerpt": "Prise de parole pour le vivant suite au visionage du documentaire de Vicent Verzat",
+    "image": "assets/images/prise-de-parole-pour-le-vivant.png"
+  }
 ]

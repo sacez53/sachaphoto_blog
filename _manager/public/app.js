@@ -4,9 +4,11 @@ const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
 const esc = escapeHTML;
 const state = { token: '', root: '', articles: [], media: [], settings: {}, editor: null, original: null,
-  dirty: false, route: '', filter: 'all', search: '', mediaFilter: 'all', mediaSearch: '', picker: null, selectedMedia: null, saving: false };
+  dirty: false, route: '', filter: 'all', search: '', mediaFilter: 'all', mediaSearch: '', picker: null, selectedMedia: null, saving: false,
+  albums: { albums: [], revision: null }, mediaAlbum: 'all', mediaSelection: new Set() };
 const workspace = $('#workspace'), modal = $('#modal');
 let dialogResolve = null, toastTimer, draftTimer, routeVersion = 0;
+let storyState = null, storyVersion = 0;
 const formatSize = size => size >= 1048576 ? `${(size / 1048576).toFixed(1)} Mo` : `${Math.max(1, Math.round(size / 1024))} Ko`;
 const localDate = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
 const slugify = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 100).replace(/-$/, '');
@@ -146,7 +148,7 @@ async function route() {
       }
       renderEditor();
     } else if (next === '/media') {
-      state.media = await api('media'); if (version !== routeVersion) return;
+      await loadMedia(); if (version !== routeVersion) return;
       renderMedia();
     } else if (next === '/settings') {
       state.settings = await api('settings'); if (version !== routeVersion) return;
@@ -196,7 +198,7 @@ function blockHTML(block, index) {
     body = `${block.src ? `<img src="${esc(imageURL(block.src))}" alt="${esc(block.alt)}">` : ''}${button('block-image', block.src ? 'Changer l’image' : 'Choisir ou importer une image', `data-index="${index}"`, block.src ? 'small' : 'image-placeholder')}
       <label>Description de l’image<input data-block="${index}" data-prop="alt" value="${esc(block.alt)}" placeholder="Ce que montre la photo" maxlength="1000"></label><label>Légende <span class="muted">(facultatif)</span><input data-block="${index}" data-prop="caption" value="${esc(block.caption)}" maxlength="2000"></label>`;
   } else if (type === 'gallery') {
-    body = `<p class="field-hint">Ajoutez jusqu’à 50 photos. Un clic sur une photo du blog l’ouvre en grand dans un nouvel onglet.</p><div class="gallery-editor">${(block.images || []).map((image, photo) => `<div class="gallery-entry"><img src="${esc(imageURL(image.src))}" alt=""><div><label>Description de la photo ${photo + 1}<input data-gallery="${index}" data-photo="${photo}" data-photo-field="alt" value="${esc(image.alt)}" maxlength="1000" placeholder="Ce que montre la photo"></label><label>Légende de la photo ${photo + 1}<input data-gallery="${index}" data-photo="${photo}" data-photo-field="caption" value="${esc(image.caption)}" maxlength="2000"></label><div class="actions">${button('gallery-up','↑',`data-index="${index}" data-photo="${photo}" aria-label="Monter la photo ${photo + 1}" ${photo === 0 ? 'disabled' : ''}`,'small')}${button('gallery-down','↓',`data-index="${index}" data-photo="${photo}" aria-label="Descendre la photo ${photo + 1}" ${photo === block.images.length - 1 ? 'disabled' : ''}`,'small')}${button('gallery-remove','Retirer',`data-index="${index}" data-photo="${photo}" aria-label="Retirer la photo ${photo + 1}"`,'small')}</div></div></div>`).join('')}</div>${button('gallery-add','＋ Ajouter une photo',`data-index="${index}"`, 'small')}`;
+    body = `<p class="field-hint">Ajoutez jusqu’à 50 photos, depuis un album ou toute la médiathèque. Un clic sur une photo du blog l’ouvre en grand dans un nouvel onglet.</p><div class="gallery-editor">${(block.images || []).map((image, photo) => `<div class="gallery-entry"><img src="${esc(imageURL(image.src))}" alt=""><div><label>Description de la photo ${photo + 1}<input data-gallery="${index}" data-photo="${photo}" data-photo-field="alt" value="${esc(image.alt)}" maxlength="1000" placeholder="Ce que montre la photo"></label><label>Légende de la photo ${photo + 1}<input data-gallery="${index}" data-photo="${photo}" data-photo-field="caption" value="${esc(image.caption)}" maxlength="2000"></label><div class="actions">${button('gallery-up','↑',`data-index="${index}" data-photo="${photo}" aria-label="Monter la photo ${photo + 1}" ${photo === 0 ? 'disabled' : ''}`,'small')}${button('gallery-down','↓',`data-index="${index}" data-photo="${photo}" aria-label="Descendre la photo ${photo + 1}" ${photo === block.images.length - 1 ? 'disabled' : ''}`,'small')}${button('gallery-remove','Retirer',`data-index="${index}" data-photo="${photo}" aria-label="Retirer la photo ${photo + 1}"`,'small')}</div></div></div>`).join('')}</div>${button('gallery-add','Ajouter des photos / un album',`data-index="${index}"`, 'small')}`;
   } else {
     const value = type === 'list' ? block.items.join('\n') : block.text;
     body = `<div class="formatbar">${button('format-bold', '<b>G</b>', `data-index="${index}" aria-label="Mettre la sélection en gras"`)}${button('format-italic', '<i>I</i>', `data-index="${index}" aria-label="Mettre la sélection en italique"`)}${button('format-link', 'Lien', `data-index="${index}"`)}<span>Gras, italique et liens visibles dans l’aperçu</span></div>
@@ -214,7 +216,7 @@ function renderEditor() {
     <div class="editor-content-title"><h2>Le contenu</h2><span>Construisez votre article par blocs</span></div><div id="blocks"></div><div class="add-block"><span>AJOUTER À VOTRE RÉCIT</span><div class="actions">${[['paragraph','＋ Paragraphe'],['heading','Titre de section'],['image','Image'],['gallery','Galerie photo'],['list','Liste'],['quote','Citation']].map(([value,label]) => button('add-block', label, `data-type="${value}"`)).join('')}</div></div><div id="word-count" class="word-count"></div></div>
     <aside class="editor-aside"><div class="panel"><h2>Enregistrement</h2><label class="field">Présence sur le site<select data-field="status"><option value="draft" ${a.status === 'draft' ? 'selected' : ''}>Brouillon privé</option><option value="published" ${a.status === 'published' ? 'selected' : ''}>Dans le blog</option></select></label><label class="field">Date de l’article<input type="datetime-local" data-field="date" value="${esc(a.date.slice(0,16).length === 10 ? a.date + 'T12:00' : a.date.slice(0,16))}" required></label><label class="field">Auteur<input data-field="author" value="${esc(a.author)}" maxlength="150" required></label><label class="check-label"><input type="checkbox" data-field="featured" ${a.featured ? 'checked' : ''}>Mettre à la une</label><p class="field-hint">Un seul article à la une. Le précédent restera dans la liste des articles.</p></div>
     <div class="panel"><h2>Image de couverture</h2><div id="cover-preview">${coverHTML(a.image)}</div><div class="actions">${button('choose-cover', 'Choisir une image', '', 'small')}${button('remove-cover', 'Retirer', `id="remove-cover" ${!a.image ? 'disabled' : ''}`, 'small')}</div><p class="field-hint">Choisissez une photo de la médiathèque ou importez-la depuis votre ordinateur.</p></div>
-    <div class="panel"><h2>Classement et partage</h2><label class="field">Catégorie<input data-field="category" value="${esc(a.category || '')}" maxlength="80" placeholder="Photographie animalière"></label><label class="field">Mots-clés<input data-field="tags" value="${esc((a.tags || []).join(', '))}" placeholder="nature, forêt, photographie"></label><p class="field-hint">Séparez les mots-clés par une virgule.</p>${button('share-preview','Aperçu du partage','','small')}</div>
+    <div class="panel"><h2>Classement et partage</h2><label class="field">Catégorie<input data-field="category" value="${esc(a.category || '')}" maxlength="80" placeholder="Photographie animalière"></label><label class="field">Mots-clés<input data-field="tags" value="${esc((a.tags || []).join(', '))}" placeholder="nature, forêt, photographie"></label><p class="field-hint">Séparez les mots-clés par une virgule.</p><div class="actions">${button('share-preview','Aperçu du partage','','small')}${button('story-open','Créer une story','','small')}${button('carousel-open','Créer un carrousel','','small')}</div></div>
     <div class="panel"><label>Adresse de l’article<input id="article-slug" data-field="slug" value="${esc(a.slug)}" pattern="[a-zA-Z0-9]+(-[a-zA-Z0-9]+)*" ${state.original ? 'readonly' : ''} maxlength="100" placeholder="mon-article"></label><p class="field-hint">${state.original ? 'Cette adresse reste fixe pour conserver les liens vers votre article.' : 'Générée à partir du titre. Vous pouvez la modifier avant le premier enregistrement.'}</p>${button('discard-editor', 'Abandonner les modifications', '', 'text-button')}</div>
     <p class="tip"><strong>Un titre au milieu du texte ?</strong><br>Ajoutez un bloc « Titre de section ». Utilisez les flèches pour le placer avant le paragraphe concerné.</p></aside></div>`;
   renderBlocks(); updateWordCount();
@@ -260,28 +262,198 @@ function preview() {
   $('#preview-dialog').showModal();
 }
 
+function openStory() {
+  const article = state.editor;
+  const base = state.settings.siteUrl || 'https://sacez53.github.io/sachaphoto_blog/';
+  storyState = { image: article.image || '', slug: article.slug || '', url: article.slug ? `${base.endsWith('/') ? base : base + '/'}partage/${encodeURIComponent(article.slug)}/` : '' };
+  $('#story-headline').value = article.title || '';
+  $('#story-eyebrow').value = article.category || 'Sur le blog';
+  $('#story-cta').value = 'Découvrir l’article';
+  $('#story-brand').value = state.settings.title || 'Sacha G. Photographe';
+  $('#story-position-x').value = '50';
+  $('#story-position').value = '50';
+  $('#story-theme').value = 'sombre';
+  $('#story-link-text').textContent = storyState.url || 'Enregistre l’article pour obtenir son lien de partage.';
+  $('[data-action="story-copy-link"]').disabled = !storyState.url;
+  $('#story-dialog').showModal();
+  drawStory();
+}
+
+function storyLines(context, text, maxWidth) {
+  if (!text.trim()) return ['Titre de votre article'];
+  const result = [];
+  for (const paragraph of text.split(/\r?\n/)) {
+    let line = '';
+    for (const word of paragraph.trim().split(/\s+/).filter(Boolean)) {
+      let pieces = [];
+      if (context.measureText(word).width > maxWidth) {
+        let piece = '';
+        for (const char of Array.from(word)) {
+          if (piece && context.measureText(piece + char).width > maxWidth) { pieces.push(piece); piece = ''; }
+          piece += char;
+        }
+        if (piece) pieces.push(piece);
+      } else pieces = [word];
+      for (const piece of pieces) {
+        const next = line ? `${line} ${piece}` : piece;
+        if (line && context.measureText(next).width > maxWidth) { result.push(line); line = piece; }
+        else line = next;
+      }
+    }
+    if (line) result.push(line);
+    else if (!paragraph.trim()) result.push('');
+  }
+  return result.length ? result : ['Titre de votre article'];
+}
+
+async function drawStory() {
+  if (!storyState || !$('#story-dialog').open) return false;
+  const version = ++storyVersion, canvas = $('#story-canvas'), context = canvas.getContext('2d');
+  const download = $('#story-download'), status = $('#story-status');
+  download.disabled = true;
+  status.textContent = 'Préparation de l’image…';
+  const imagePath = storyState.image;
+  let photo = null;
+  if (imagePath) {
+    try {
+      photo = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error('La photo choisie ne peut pas être chargée.'));
+        image.src = imageURL(imagePath);
+      });
+    } catch (error) {
+      if (version === storyVersion) { status.textContent = error.message; download.disabled = true; }
+      return false;
+    }
+  }
+  if (version !== storyVersion || !$('#story-dialog').open) return false;
+  const light = $('#story-theme').value === 'claire';
+  const w = canvas.width, h = canvas.height;
+  context.clearRect(0, 0, w, h);
+  context.fillStyle = light ? '#e8eee3' : '#1a3025'; context.fillRect(0, 0, w, h);
+  if (photo) {
+    const scale = Math.max(w / photo.naturalWidth, h / photo.naturalHeight);
+    const width = photo.naturalWidth * scale, height = photo.naturalHeight * scale;
+    const x = (w - width) * Number($('#story-position-x').value) / 100;
+    const y = (h - height) * Number($('#story-position').value) / 100;
+    context.drawImage(photo, x, y, width, height);
+  }
+  const gradient = context.createLinearGradient(0, 0, 0, h);
+  if (light) {
+    gradient.addColorStop(0, 'rgba(247,250,244,0.72)'); gradient.addColorStop(0.35, 'rgba(247,250,244,0.28)');
+    gradient.addColorStop(0.56, 'rgba(247,250,244,0.75)'); gradient.addColorStop(1, 'rgba(247,250,244,0.98)');
+  } else {
+    gradient.addColorStop(0, 'rgba(15,30,22,0.65)'); gradient.addColorStop(0.35, 'rgba(15,30,22,0.18)');
+    gradient.addColorStop(0.58, 'rgba(15,30,22,0.76)'); gradient.addColorStop(1, 'rgba(15,30,22,0.98)');
+  }
+  context.fillStyle = gradient; context.fillRect(0, 0, w, h);
+  const color = light ? '#203c2d' : '#ffffff';
+  context.fillStyle = color; context.textBaseline = 'top';
+  context.font = '500 30px system-ui, sans-serif';
+  const brand = $('#story-brand').value.trim();
+  context.fillText(brand, 90, 185, 900);
+  context.fillStyle = light ? '#45684d' : '#c6dcc7';
+  context.font = '600 30px system-ui, sans-serif';
+  context.fillText($('#story-eyebrow').value.trim().toLocaleUpperCase('fr'), 90, 950, 900);
+  const headline = $('#story-headline').value.trim();
+  let size = 104, lines = [];
+  while (true) {
+    context.font = `600 ${size}px Georgia, serif`;
+    lines = storyLines(context, headline, 900);
+    if (lines.length * size * 1.17 <= 400 || size === 32) break;
+    size = Math.max(32, size - 4);
+  }
+  if (lines.length * size * 1.17 > 400) {
+    status.textContent = 'Le titre est trop long pour le visuel. Raccourcis-le pour le télécharger.';
+    return false;
+  }
+  context.fillStyle = color;
+  lines.forEach((line, index) => context.fillText(line, 90, 1010 + index * size * 1.17));
+  const cta = $('#story-cta').value.trim();
+  if (cta) {
+    context.font = '600 30px system-ui, sans-serif';
+    context.fillStyle = light ? '#365d46' : '#deeadc';
+    context.fillRect(90, 1500, 70, 4);
+    context.fillText(cta, 90, 1535, 900);
+  }
+  $('#story-image-label').textContent = imagePath ? `Photo : ${imagePath.split('/').pop()}` : 'Fond uni. Choisis une photo si tu le souhaites.';
+  status.textContent = 'Aperçu prêt · Les textes restent modifiables ici.';
+  download.disabled = false;
+  return true;
+}
+
+for (const id of ['story-headline', 'story-eyebrow', 'story-cta', 'story-brand', 'story-position-x', 'story-position', 'story-theme']) {
+  document.getElementById(id).addEventListener('input', () => { drawStory(); });
+}
+$('#story-dialog').addEventListener('close', () => { storyVersion++; storyState = null; });
+
+async function loadMedia() {
+  const [media, albums] = await Promise.all([api('media'), api('albums')]);
+  state.media = media; state.albums = albums;
+  state.mediaSelection = new Set([...state.mediaSelection].filter(path => media.some(item => item.path === path)));
+  if (!['all', 'unfiled'].includes(state.mediaAlbum) && !albums.albums.some(album => album.id === state.mediaAlbum)) state.mediaAlbum = 'all';
+}
+function albumOptions(selected = 'all', filters = true) {
+  return (filters ? `<option value="all" ${selected === 'all' ? 'selected' : ''}>Tous les albums</option><option value="unfiled" ${selected === 'unfiled' ? 'selected' : ''}>Sans album</option>` : '') +
+    state.albums.albums.map(album => `<option value="${esc(album.id)}" ${selected === album.id ? 'selected' : ''}>${esc(album.name)} (${album.images.length})</option>`).join('');
+}
+function inAlbum(item, id) {
+  if (id === 'all') return true;
+  if (id === 'unfiled') return !state.albums.albums.some(album => album.images.includes(item.path));
+  return state.albums.albums.find(album => album.id === id)?.images.includes(item.path);
+}
+function visibleMedia() {
+  return state.media.filter(m => inAlbum(m, state.mediaAlbum) && m.name.toLowerCase().includes(state.mediaSearch.toLowerCase()) &&
+    (state.mediaFilter === 'all' || (state.mediaFilter === 'used' ? m.usedBy.length : !m.usedBy.length)));
+}
 function renderMedia() {
-  workspace.innerHTML = pageHeading('VOTRE COLLECTION', 'La médiathèque', 'Les images de vos articles et les visuels de votre blog.', button('upload', '＋ Importer des images', '', 'primary')) +
-    `<div class="dropzone" id="media-drop"><div><strong>Glissez vos images ici</strong><p>JPG, PNG, WebP, GIF, AVIF, SVG ou ICO · 20 Mo par fichier<br>Les images sont copiées dans le dossier du blog.</p></div>${button('upload', 'Choisir des fichiers')}</div><div class="filters"><div class="tabs">${[['all','Toutes les images'],['used','Utilisées'],['unused','Non utilisées']].map(([value,label]) => button('filter-media',label,`data-value="${value}" aria-pressed="${state.mediaFilter === value}"`)).join('')}</div><label class="search"><span class="visually-hidden">Rechercher une image</span><input id="media-search" type="search" placeholder="Rechercher une image…" value="${esc(state.mediaSearch)}"></label></div><div id="media-results"></div><p class="footnote">Remplacer une image conserve son adresse et actualise tous les endroits qui l’utilisent.</p>`;
+  const album = state.albums.albums.find(item => item.id === state.mediaAlbum);
+  workspace.innerHTML = pageHeading('VOTRE COLLECTION', 'La médiathèque', 'Classez vos photos par reportage ou par projet.',
+    button('refresh-media', 'Actualiser', '', 'small') + button('album-new', 'Nouvel album') + button('upload', 'Importer des images', '', 'primary')) +
+    `<section class="album-bar"><label>Album<select id="media-album">${albumOptions(state.mediaAlbum)}</select></label><div><p>${album ? `${album.images.length} image(s) dans cet album. Les imports y seront ajoutés.` : 'Une photo peut appartenir à plusieurs albums.'}</p><div class="actions">${album ? button('album-rename', 'Renommer', '', 'small') + button('album-delete', 'Supprimer l’album', '', 'small') : ''}</div></div></section>
+    <div class="dropzone" id="media-drop"><div><strong>Glissez vos images ici</strong><p>JPG, PNG, WebP, GIF, AVIF, SVG ou ICO · 20 Mo par fichier</p></div>${button('upload', 'Choisir des fichiers')}</div><div class="filters"><div class="tabs">${[['all','Toutes les images'],['used','Utilisées'],['unused','Non utilisées']].map(([value,label]) => button('filter-media',label,`data-value="${value}" aria-pressed="${state.mediaFilter === value}"`)).join('')}</div><label class="search"><span class="visually-hidden">Rechercher une image</span><input id="media-search" type="search" placeholder="Rechercher une image…" value="${esc(state.mediaSearch)}"></label></div><div id="media-selection-bar" class="selection-bar"></div><div id="media-results"></div><p class="footnote">Les albums sont un classement dans le gestionnaire. Supprimer un album conserve ses photos et les galeries des articles.</p>`;
   renderMediaResults();
 }
 function mediaCards(items, picker = false) {
-  return items.map(item => `<article class="media-card"><button class="media-thumb-button" data-action="${picker ? 'pick-image' : 'media-detail'}" data-path="${esc(item.path)}" aria-label="${picker ? 'Choisir' : 'Gérer'} ${esc(item.name)}"><img loading="lazy" src="${esc(imageURL(item.path))}?v=${item.revision.slice(0,10)}" alt="${esc(item.name)}"></button><div class="media-info"><h3 title="${esc(item.name)}">${esc(item.name)}</h3><p><span>${formatSize(item.size)}</span><span class="${item.usedBy.length ? 'used' : ''}">${item.usedBy.length ? 'Utilisée' : 'Non utilisée'}</span></p></div></article>`).join('');
+  const multiple = picker && state.picker?.multiple, selected = picker ? state.picker?.selected : state.mediaSelection;
+  return items.map(item => `<article class="media-card ${selected?.has(item.path) ? 'selected' : ''}"><button class="media-thumb-button" data-action="${picker ? 'pick-image' : 'media-detail'}" data-path="${esc(item.path)}" ${multiple ? `aria-pressed="${selected.has(item.path)}"` : ''} aria-label="${picker ? 'Choisir' : 'Gérer'} ${esc(item.name)}"><img loading="lazy" src="${esc(imageURL(item.path))}?v=${item.revision.slice(0,10)}" alt="">${multiple && selected.has(item.path) ? `<span class="selection-number">${[...selected].indexOf(item.path) + 1}</span>` : ''}</button><div class="media-info"><h3 title="${esc(item.name)}">${esc(item.name)}</h3><p><span>${formatSize(item.size)}</span><span class="${item.usedBy.length ? 'used' : ''}">${item.usedBy.length ? 'Utilisée' : 'Non utilisée'}</span></p>${!picker ? `<label class="check-label media-select"><input type="checkbox" data-media-select="${esc(item.path)}" ${selected.has(item.path) ? 'checked' : ''}>Sélectionner<span class="visually-hidden"> ${esc(item.name)}</span></label>` : ''}</div></article>`).join('');
+}
+function renderMediaSelection() {
+  const count = state.mediaSelection.size, album = state.albums.albums.find(item => item.id === state.mediaAlbum);
+  $('#media-selection-bar').innerHTML = `<span role="status">${count} image(s) sélectionnée(s)</span><div class="actions">${button('media-select-all', 'Sélectionner les résultats', '', 'small')}${button('media-clear', 'Tout désélectionner', count ? '' : 'disabled', 'small')}${button('album-assign', 'Ajouter à un album', count ? '' : 'disabled', 'small')}${album ? button('album-remove-images', 'Retirer de cet album', count ? '' : 'disabled', 'small') : ''}</div>`;
 }
 function renderMediaResults() {
-  const items = state.media.filter(m => m.name.toLowerCase().includes(state.mediaSearch.toLowerCase()) && (state.mediaFilter === 'all' || (state.mediaFilter === 'used' ? m.usedBy.length : !m.usedBy.length)));
+  const items = visibleMedia();
   $('#media-results').innerHTML = items.length ? `<div class="media-grid">${mediaCards(items)}</div>` : '<div class="empty"><h2>Aucune image dans cette sélection</h2><p>Importez une image ou changez les filtres.</p></div>';
+  renderMediaSelection();
 }
-async function chooseImage(callback) {
-  state.media = await api('media');
-  openModal(`<div class="dialog-header"><h2 id="modal-title">Choisir une image</h2>${button('cancel-dialog', 'Fermer')}</div><div class="filters"><label class="search"><span class="visually-hidden">Rechercher dans la médiathèque</span><input id="picker-search" type="search" placeholder="Rechercher une image…"></label>${button('upload', 'Importer une image', '', 'primary')}</div><div id="picker-results" class="media-grid picker-grid"></div><p class="field-hint">Cliquez sur une image pour l’insérer.</p>`);
-  state.picker = callback;
+function albumForm(rename = false) {
+  const album = rename ? state.albums.albums.find(item => item.id === state.mediaAlbum) : null;
+  openModal(`<div class="dialog-header"><h2 id="modal-title">${album ? 'Renommer l’album' : 'Nouvel album'}</h2></div><label>Nom de l’album<input id="album-name" maxlength="100" required value="${esc(album?.name || '')}" placeholder="Nom du reportage ou du projet"></label>${!album && state.mediaSelection.size ? `<p class="field-hint">Les ${state.mediaSelection.size} images sélectionnées seront ajoutées à cet album.</p>` : ''}<div class="dialog-footer">${button('cancel-dialog','Annuler')}${button('album-save', album ? 'Enregistrer' : 'Créer l’album', `data-id="${album?.id || ''}"`, 'primary')}</div>`);
+  $('#album-name').focus();
+}
+async function saveAlbumList(albums) {
+  state.albums = await api('albums', 'PUT', { albums, revision: state.albums.revision });
+}
+async function chooseImage(callback) { return chooseImages(paths => callback(paths[0]), { multiple: false }); }
+async function chooseImages(callback, { multiple = true, max = 50 } = {}) {
+  await loadMedia();
+  openModal(`<div class="dialog-header"><h2 id="modal-title">${multiple ? 'Choisir des photos' : 'Choisir une image'}</h2>${button('cancel-dialog', 'Fermer')}</div><div class="filters"><label class="search"><span class="visually-hidden">Rechercher dans la médiathèque</span><input id="picker-search" type="search" placeholder="Rechercher une image…"></label>${button('upload', 'Importer une image', '', 'primary')}</div><label>Album<select id="picker-album">${albumOptions()}</select></label><div id="picker-results" class="media-grid picker-grid"></div>${multiple ? `<div class="picker-footer"><p id="picker-count" role="status"></p><div class="actions">${button('picker-select-all', 'Sélectionner les résultats', '', 'small')}${button('picker-clear', 'Tout désélectionner', '', 'small')}${button('picker-confirm', 'Insérer la sélection', 'disabled', 'primary')}</div></div>` : '<p class="field-hint">Cliquez sur une image pour l’insérer.</p>'}`, 'image-picker');
+  state.picker = { callback, multiple, max, selected: new Set() };
   renderPicker();
 }
+function pickerItems() {
+  const query = $('#picker-search')?.value.toLowerCase() || '', album = $('#picker-album')?.value || 'all';
+  return state.media.filter(m => inAlbum(m, album) && m.name.toLowerCase().includes(query));
+}
 function renderPicker() {
-  const query = $('#picker-search')?.value.toLowerCase() || '';
-  const items = state.media.filter(m => m.name.toLowerCase().includes(query));
+  const items = pickerItems();
   $('#picker-results').innerHTML = items.length ? mediaCards(items,true) : '<p class="muted">Aucune image. Vous pouvez en importer une.</p>';
+  if (state.picker.multiple) {
+    $('#picker-count').textContent = `${state.picker.selected.size} / ${state.picker.max} photo(s) sélectionnée(s). L’ordre suit votre sélection.`;
+    $('[data-action="picker-confirm"]').disabled = !state.picker.selected.size;
+  }
 }
 function mediaDetail(relative) {
   const item = state.media.find(m => m.path === relative);
@@ -401,6 +573,23 @@ document.addEventListener('click', event => {
       if (action === 'filter-media') { state.mediaFilter = value; renderMedia(); return; }
       if (action === 'save-article') { await saveArticle(); return; }
       if (action === 'preview') { preview(); return; }
+      if (action === 'story-open') { openStory(); return; }
+      if (action === 'close-story') { $('#story-dialog').close(); return; }
+      if (action === 'story-image') {
+        await chooseImage(path => { if (storyState) { storyState.image = path; drawStory(); } }); return;
+      }
+      if (action === 'story-remove-image') { storyState.image = ''; await drawStory(); return; }
+      if (action === 'story-copy-link') { await navigator.clipboard.writeText(storyState.url); toast('Lien de l’article copié.'); return; }
+      if (action === 'story-download') {
+        if (!await drawStory()) return;
+        const canvas = $('#story-canvas');
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        if (!blob) throw new Error('La création de l’image a échoué. Essaie une autre photo.');
+        const url = URL.createObjectURL(blob), link = document.createElement('a');
+        link.href = url; link.download = `story-${slugify($('#story-headline').value) || 'article'}.png`; link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        toast('Image de story téléchargée.'); return;
+      }
       if (action === 'share-preview') {
         const a = state.editor;
         const base = state.settings.siteUrl || 'https://sacez53.github.io/sachaphoto_blog/';

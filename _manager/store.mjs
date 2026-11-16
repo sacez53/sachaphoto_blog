@@ -64,7 +64,7 @@ export function createStore(root) {
   }
   function allowed(relative) {
     return /^data\/(?:articles\/[-a-z0-9]+\.json|articles\.json|site\.json)$/i.test(relative) ||
-      /^\.blog-manager\/drafts\/[-a-z0-9]+\.json$/i.test(relative) || mediaPattern.test(relative);
+      relative === `${local}/albums.json` || /^\.blog-manager\/drafts\/[-a-z0-9]+\.json$/i.test(relative) || mediaPattern.test(relative);
   }
   const historyDirectory = file(`${local}/backups`);
   fs.mkdirSync(historyDirectory, { recursive: true });
@@ -294,7 +294,29 @@ export function createStore(root) {
     walk('assets/images');
     return result.sort((a, b) => b.modified.localeCompare(a.modified));
   }
-  function uploadMedia({ name, data, replace, revision }) {
+  function getAlbums() {
+    const albums = read(`${local}/albums.json`, []);
+    if (!Array.isArray(albums) || albums.some(album => !album || typeof album.id !== 'string' ||
+      !/^[a-z0-9-]{1,100}$/i.test(album.id) || typeof album.name !== 'string' || !Array.isArray(album.images) ||
+      album.images.some(image => typeof image !== 'string' || !mediaPattern.test(image)))) fail('Le classement des albums est invalide. Il n’a pas été modifié.', 422);
+    return { albums, revision: hash(bytes(`${local}/albums.json`)) };
+  }
+  function saveAlbums(input) {
+    if (input.revision !== getAlbums().revision) fail('Les albums ont changé. Actualisez la médiathèque avant de recommencer.', 409);
+    if (!Array.isArray(input.albums) || input.albums.length > 300) fail('Vous pouvez créer au maximum 300 albums.');
+    const ids = new Set(), names = new Set();
+    const albums = input.albums.map(album => {
+      if (!album || typeof album.id !== 'string' || !/^[a-z0-9-]{1,100}$/i.test(album.id) || ids.has(album.id)) fail('Identifiant d’album invalide ou déjà utilisé.');
+      const name = text(album.name, 'Nom de l’album', 100, true).trim();
+      if (names.has(name.toLocaleLowerCase('fr'))) fail('Un album porte déjà ce nom.');
+      if (!Array.isArray(album.images) || album.images.length > 20000) fail('Un album peut contenir au maximum 20 000 images.');
+      ids.add(album.id); names.add(name.toLocaleLowerCase('fr'));
+      return { id: album.id, name, images: [...new Set(album.images.map(image => mediaPath(image, false)))] };
+    });
+    commit('Classement des albums', new Map([[`${local}/albums.json`, json(albums)]]));
+    return getAlbums();
+  }
+  function uploadMedia({ name, data, replace, revision, albumId }) {
     if (typeof name !== 'string' || typeof data !== 'string' || data.length > 28_000_000 || !/^[A-Za-z0-9+/]*={0,2}$/.test(data)) fail('Image invalide ou trop volumineuse (20 Mo maximum).');
     const ext = path.extname(name).toLowerCase();
     const image = Buffer.from(data, 'base64');
@@ -323,7 +345,14 @@ export function createStore(root) {
       let suffix = 2;
       while (bytes(relative)) relative = `assets/images/${stem}-${suffix++}${ext}`;
     }
-    commit(`${replace ? 'Remplacement' : 'Import'} de l’image : ${path.basename(relative)}`, new Map([[relative, image]]));
+    const changes = new Map([[relative, image]]);
+    if (albumId && !replace) {
+      const { albums } = getAlbums(), album = albums.find(item => item.id === albumId);
+      if (!album) fail('Cet album n’existe plus. Actualisez la médiathèque.', 409);
+      album.images.push(relative);
+      changes.set(`${local}/albums.json`, json(albums));
+    }
+    commit(`${replace ? 'Remplacement' : 'Import'} de l’image : ${path.basename(relative)}`, changes);
     return { path: relative, name: path.basename(relative), size: image.length, modified: fs.statSync(file(relative)).mtime.toISOString(), revision: hash(image), usedBy: references(relative) };
   }
   function deleteMedia(relative, revision) {
@@ -331,7 +360,11 @@ export function createStore(root) {
     if (hash(bytes(relative)) !== revision) fail('Cette image a changé. Actualisez la médiathèque.', 409);
     const usedBy = references(relative);
     if (usedBy.length) fail(`Cette image est utilisée : ${usedBy.join(', ')}. Remplacez-la ou retirez-la de ces contenus avant de la supprimer.`, 409);
-    commit(`Suppression de l’image : ${path.basename(relative)}`, new Map([[relative, null]]));
+    const changes = new Map([[relative, null]]), { albums } = getAlbums();
+    if (albums.some(album => album.images.includes(relative))) {
+      changes.set(`${local}/albums.json`, json(albums.map(album => ({ ...album, images: album.images.filter(image => image !== relative) }))));
+    }
+    commit(`Suppression de l’image : ${path.basename(relative)}`, changes);
   }
   function history() {
     return manifests().filter(m => m.state === 'complete').map(m => ({ id: m.id, label: m.label, date: m.date,
@@ -344,6 +377,8 @@ export function createStore(root) {
     // Ne pas retirer une image qui a été réutilisée depuis son import.
     for (const entry of manifest.entries) {
       if (mediaPattern.test(entry.path) && entry.before === null && references(entry.path).length) fail('Cette image est maintenant utilisée. Retirez-la des articles ou des réglages avant d’annuler son import.', 409);
+      if (mediaPattern.test(entry.path) && entry.before === null && !manifest.entries.some(item => item.path === `${local}/albums.json`) &&
+        getAlbums().albums.some(album => album.images.includes(entry.path))) fail('Cette image appartient maintenant à un album. Retirez-la de cet album avant d’annuler son import.', 409);
     }
     const changes = new Map(manifest.entries.map(e => [e.path, e.before === null ? null : bytes(`${local}/backups/${id}/${e.before}`)]));
     for (const entry of manifest.entries) {
@@ -353,10 +388,11 @@ export function createStore(root) {
     for (const [relative, value] of changes) {
       if (!value || !relative.endsWith('.json') || relative === 'data/articles.json') continue;
       const content = JSON.parse(value.toString('utf8'));
-      const images = [content.image, content.avatar, content.favicon, ...(content.content || []).flatMap(b => [b.src, ...(b.images || []).map(image => image.src)])].filter(Boolean);
+      const images = relative === `${local}/albums.json` ? content.flatMap(album => album.images) :
+        [content.image, content.avatar, content.favicon, ...(content.content || []).flatMap(b => [b.src, ...(b.images || []).map(image => image.src)])].filter(Boolean);
       for (const image of images) if (!(changes.has(image) ? changes.get(image) : bytes(image))) fail('Une image de cette sauvegarde manque. Restaurez d’abord l’image correspondante.', 409);
     }
     commit(`Restauration : ${manifest.label}`, changes);
   }
-  return { root, file, bytes, catalog, getArticle, listArticles, saveArticle, deleteArticle, getSettings, saveSettings, listMedia, uploadMedia, deleteMedia, history, restore };
+  return { root, file, bytes, catalog, getArticle, listArticles, saveArticle, deleteArticle, getSettings, saveSettings, listMedia, getAlbums, saveAlbums, uploadMedia, deleteMedia, history, restore };
 }

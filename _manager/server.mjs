@@ -53,6 +53,7 @@ export async function startServer({ root = projectRoot, port = 4899 } = {}) {
           if (url.pathname === '/api/articles') return send(200, store.listArticles());
           if (url.pathname.startsWith('/api/articles/')) return send(200, store.getArticle(decodeURIComponent(url.pathname.slice(14))));
           if (url.pathname === '/api/media') return send(200, store.listMedia());
+          if (url.pathname === '/api/albums') return send(200, store.getAlbums());
           if (url.pathname === '/api/settings') return send(200, store.getSettings());
           if (url.pathname === '/api/history') return send(200, store.history());
           if (url.pathname === '/api/check') return send(200, checkSite(store));
@@ -73,6 +74,7 @@ export async function startServer({ root = projectRoot, port = 4899 } = {}) {
           if (request.method === 'DELETE') { store.deleteMedia(input.path, input.revision); return send(200, { ok: true }); }
         }
         if (url.pathname === '/api/settings' && request.method === 'PUT') return send(200, store.saveSettings(input));
+        if (url.pathname === '/api/albums' && request.method === 'PUT') return send(200, store.saveAlbums(input));
         if (url.pathname === '/api/restore' && request.method === 'POST') { store.restore(input.id); return send(200, { ok: true }); }
         if (url.pathname === '/api/export' && request.method === 'POST') {
           build(store.root);
@@ -92,7 +94,7 @@ export async function startServer({ root = projectRoot, port = 4899 } = {}) {
       let relative = decodeURIComponent(url.pathname).slice(1);
       if (!relative) { response.writeHead(302, { Location: '/manager/' }); response.end(); return; }
       if (relative === 'manager' || relative === 'manager/') relative = '_manager/public/index.html';
-      else if (/^manager\/(?:app\.js|style\.css)$/.test(relative)) relative = `_manager/public/${relative.slice(8)}`;
+      else if (/^manager\/(?:app\.js|carousel\.js|style\.css)$/.test(relative)) relative = `_manager/public/${relative.slice(8)}`;
       else if (!publicPages.includes(relative) && !/^(?:assets\/(?:images|css|js)\/[^\\]+|components\/(?:header|footer)\.html|data\/(?:site\.json|articles\.json|articles\/[-a-z0-9]+\.json))$/i.test(relative)) throw new UserError('Fichier introuvable.', 404);
       const type = mime[path.extname(relative).toLowerCase()];
       if (!type) throw new UserError('Fichier introuvable.', 404);
