@@ -9,6 +9,7 @@ import { createStore } from '../_manager/store.mjs';
 import { startServer } from '../_manager/server.mjs';
 import { build, publicFiles, zipSite, projectRoot } from '../_manager/build.mjs';
 import { checkSite } from '../_manager/check.mjs';
+import { isPublicationDue } from '../_manager/publication.mjs';
 
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/2uoAAAAASUVORK5CYII=', 'base64');
 function fixture(t) {
@@ -30,6 +31,63 @@ const article = (overrides = {}) => ({ slug:'un-article', title:'Un article', au
   { type:'heading',level:3,text:'Sous-titre' }, { type:'image',src:'assets/images/test.png',alt:'Image de test',caption:'Légende' },
   { type:'list',items:['Premier','Second'],ordered:true }, { type:'quote',text:'Une citation',author:'Auteur' }
 ], ...overrides });
+
+test('la médiathèque ne relit pas les photos inchangées et actualise leurs utilisations', t => {
+  const { root, store, write } = fixture(t);
+  write('assets/images/autre.png', png);
+  const readFile = fs.readFileSync;
+  let photoReads = 0, htmlReads = 0;
+  t.mock.method(fs, 'readFileSync', function (file, ...args) {
+    const name = String(file);
+    if (name.startsWith(root) && /\.(?:png|html)$/.test(name)) {
+      if (name.endsWith('.png')) photoReads++; else htmlReads++;
+    }
+    return readFile.call(this, file, ...args);
+  });
+  const initial = store.listMedia();
+  assert.equal(photoReads, 2); assert.ok(htmlReads <= 6);
+  photoReads = 0; htmlReads = 0;
+  assert.deepEqual(store.listMedia(), initial);
+  assert.equal(photoReads, 0); assert.ok(htmlReads <= 6);
+  const saved = store.saveArticle(article());
+  assert.ok(store.listMedia().find(item => item.name === 'test.png').usedBy.includes('Un article (brouillon)'));
+  store.deleteArticle(saved.slug, saved.revision);
+  assert.deepEqual(store.listMedia().find(item => item.name === 'test.png').usedBy, ['Portrait de l’auteur', 'Icône du blog']);
+});
+
+test('le cache des photos détecte les modifications externes et les remplacements', t => {
+  const { root, store, write } = fixture(t);
+  const relative = 'assets/images/libre.png';
+  write(relative, png);
+  const initial = store.listMedia().find(item => item.path === relative);
+  const changed = Buffer.from(png); changed[changed.length - 1] ^= 1;
+  write(relative, changed);
+  fs.utimesSync(path.join(root, relative), new Date(), new Date('2020-01-01'));
+  const external = store.listMedia().find(item => item.path === relative);
+  assert.notEqual(external.revision, initial.revision);
+  assert.throws(() => store.deleteMedia(relative, initial.revision), /changé/);
+  const replaced = store.uploadMedia({ name: 'libre.png', replace: relative, revision: external.revision, data: png.toString('base64') });
+  assert.equal(store.listMedia().find(item => item.path === relative).revision, replaced.revision);
+  store.deleteMedia(relative, replaced.revision);
+  assert.ok(!store.listMedia().some(item => item.path === relative));
+});
+
+test('les fichiers locaux inchangés sont revalidés sans être renvoyés', async t => {
+  const { root, write } = fixture(t), { server, url } = await startServer({ root, port: 0 });
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const base = new URL(url).origin, asset = `${base}/assets/css/style.css`;
+  const first = await fetch(asset), etag = first.headers.get('etag');
+  assert.equal(first.status, 200); assert.ok(etag); await first.text();
+  const cached = await fetch(asset, { headers: { 'If-None-Match': etag } });
+  assert.equal(cached.status, 304); assert.equal(await cached.text(), '');
+  write('assets/css/style.css', 'body { color: blue; }');
+  const updated = await fetch(asset, { headers: { 'If-None-Match': etag } });
+  assert.equal(updated.status, 200); assert.notEqual(updated.headers.get('etag'), etag);
+  assert.match(await updated.text(), /blue/);
+  const data = await fetch(`${base}/api/media`, { headers: { 'If-None-Match': '*' } });
+  assert.equal(data.status, 200); assert.equal(data.headers.get('cache-control'), 'no-store');
+  assert.equal((await fetch(`${base}/.git/config`, { headers: { 'If-None-Match': '*' } })).status, 404);
+});
 
 test('un brouillon conserve les titres et reste hors du site public', t => {
   const { store,root } = fixture(t), saved = store.saveArticle(article());
@@ -203,6 +261,40 @@ test('export et archive contiennent seulement les fichiers publics, sans brouill
   assert.doesNotMatch(share, /http-equiv="refresh"/);
   assert.ok(!names.some(name => name.includes('secret') || name.includes('_manager') || name.includes('backups')));
 });
+test('un article programmé reste hors du catalogue, des pages et du ZIP avant son échéance', t => {
+  const { store, root } = fixture(t);
+  const publishAt = '2035-06-12T12:00:00+02:00', due = Date.parse(publishAt);
+  store.saveArticle(article({ slug: 'maintenant', status: 'published', featured: true }));
+  const future = store.saveArticle(article({ slug: 'demain', status: 'published', publishAt, featured: true }));
+  assert.equal(future.publishAt, publishAt);
+  assert.equal(store.catalog().find(item => item.slug === 'maintenant').featured, true);
+  assert.equal(isPublicationDue(future, due - 1), false); assert.equal(isPublicationDue(future, due), true);
+  build(root, due - 1);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(root, 'dist/data/articles.json'))).map(item => item.slug), ['maintenant']);
+  assert.equal(fs.existsSync(path.join(root, 'dist/data/articles/demain.json')), false);
+  assert.equal(fs.existsSync(path.join(root, 'dist/partage/demain/index.html')), false);
+  const zip = zipSite(root, due - 1);
+  assert.equal(zip.includes(Buffer.from('data/articles/demain.json')), false);
+  assert.equal(zip.includes(Buffer.from('partage/demain/index.html')), false);
+  build(root, due);
+  assert.ok(fs.existsSync(path.join(root, 'dist/data/articles/demain.json')));
+  assert.ok(fs.existsSync(path.join(root, 'dist/partage/demain/index.html')));
+  const catalog = JSON.parse(fs.readFileSync(path.join(root, 'dist/data/articles.json')));
+  assert.equal(catalog.filter(item => item.featured).length, 1);
+  assert.equal(catalog.find(item => item.featured).slug, 'demain');
+  build(root, due - 1);
+  assert.equal(fs.existsSync(path.join(root, 'dist/data/articles/demain.json')), false);
+});
+
+test('la programmation exige un fuseau horaire et un brouillon reste privé après son échéance', t => {
+  const { store, root } = fixture(t);
+  assert.throws(() => store.saveArticle(article({publishAt:'2035-06-12T12:00'})), /publication invalide/);
+  assert.throws(() => store.saveArticle(article({publishAt:'invalide'})), /publication invalide/);
+  store.saveArticle(article({publishAt:'2020-01-01T00:00:00Z'}));
+  assert.ok(!publicFiles(root).some(name => name.includes('un-article')));
+  assert.equal(isPublicationDue({publishAt:'2035-12-12T12:00:00+01:00'}, Date.parse('2035-12-12T11:00:00Z')), true);
+});
+
 test('les catégories et mots-clés restent dans l’article et le catalogue', t => {
   const {store} = fixture(t);
   const saved = store.saveArticle(article({status:'published',category:'Nature',tags:['forêt','oiseaux']}));

@@ -1,8 +1,10 @@
 /* ============================================================
    BLOG — Style global
    Design éditorial minimaliste : typographie + espace.
-   Police : Inter (Google Fonts), chargée dans les HTML.
+   Police : Inter, chargée depuis les fichiers du blog.
    ============================================================ */
+
+@import url('./identity.css');
 
 /* --- Reset léger --- */
 *, *::before, *::after {
@@ -13,11 +15,11 @@
 
 /* --- Base --- */
 body {
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--blog-font);
   font-size: 1.0625rem;        /* ~17px */
   line-height: 1.75;
-  color: #1a1a1a;
-  background-color: #fdfdfd;
+  color: var(--blog-text);
+  background-color: var(--blog-background);
 }
 
 img {
@@ -27,7 +29,7 @@ img {
 }
 
 a {
-  color: #1a5276;
+  color: var(--blog-accent);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
@@ -93,7 +95,7 @@ select:focus-visible,
 /* --- Header / Navigation --- */
 .site-header {
   padding: 1.75rem 0;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--blog-line);
   margin-bottom: 2.5rem;
 }
 
@@ -139,7 +141,7 @@ select:focus-visible,
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #666;  /* Amélioré : ratio de contraste ≥ 4.5:1 sur #fdfdfd */
+  color: var(--blog-muted);
   margin-bottom: 1.25rem;
 }
 
@@ -195,7 +197,7 @@ section {
 }
 
 .featured-item .excerpt {
-  color: #444;
+  color: var(--blog-secondary);
 }
 
 /* --- Lien « Voir plus » --- */

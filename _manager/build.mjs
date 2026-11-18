@@ -1,13 +1,25 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { isPublicationDue } from './publication.mjs';
 
 export const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const publicPages = ['index.html', 'articles.html', 'article.html', 'a-propos.html'];
 
-export function publicFiles(root) {
-  const files = [...publicPages, 'data/articles.json', 'data/site.json'];
+function publishedCatalog(root, now) {
   const catalog = JSON.parse(fs.readFileSync(path.join(root, 'data/articles.json'), 'utf8').replace(/^\uFEFF/, ''));
+  const due = catalog.filter(article => {
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(article.slug)) throw new Error('Adresse invalide dans le catalogue.');
+    const content = JSON.parse(fs.readFileSync(path.join(root, `data/articles/${article.slug}.json`), 'utf8').replace(/^\uFEFF/, ''));
+    return isPublicationDue(article, now) && isPublicationDue(content, now);
+  });
+  const featured = due.filter(article => article.featured || article.important).sort((a,b) => (Date.parse(b.publishAt || b.date) || 0) - (Date.parse(a.publishAt || a.date) || 0))[0];
+  return due.map(article => featured ? { ...article, featured: article.slug === featured.slug, important: article.slug === featured.slug } : article);
+}
+
+export function publicFiles(root, now = Date.now()) {
+  const files = [...publicPages, 'data/articles.json', 'data/site.json'];
+  const catalog = publishedCatalog(root, now);
   for (const article of catalog) {
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(article.slug)) throw new Error('Adresse invalide dans le catalogue.');
     files.push(`data/articles/${article.slug}.json`);
@@ -25,8 +37,9 @@ export function publicFiles(root) {
 }
 
 const html = value => String(value || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-export function siteFiles(root) {
-  const files = publicFiles(root).map(relative => [relative, fs.readFileSync(path.join(root, relative))]);
+export function siteFiles(root, now = Date.now()) {
+  const catalog = publishedCatalog(root, now);
+  const files = publicFiles(root, now).map(relative => [relative, relative === 'data/articles.json' ? Buffer.from(JSON.stringify(catalog, null, 2) + '\n') : fs.readFileSync(path.join(root, relative))]);
   const template = fs.readFileSync(path.join(root, 'article.html'), 'utf8');
   if (!/<head(?:\s[^>]*)?>/i.test(template)) throw new Error('La page article.html ne contient pas de balise head.');
   const settings = JSON.parse(fs.readFileSync(path.join(root, 'data/site.json'), 'utf8').replace(/^\uFEFF/, ''));
@@ -36,7 +49,6 @@ export function siteFiles(root) {
     if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) throw new Error();
   } catch { throw new Error('Adresse publique du blog invalide dans les réglages.'); }
   if (!base.pathname.endsWith('/')) base.pathname += '/';
-  const catalog = JSON.parse(fs.readFileSync(path.join(root, 'data/articles.json'), 'utf8').replace(/^\uFEFF/, ''));
   for (const article of catalog) {
     const share = new URL(`partage/${encodeURIComponent(article.slug)}/`, base).href;
     const destination = new URL(`article.html?slug=${encodeURIComponent(article.slug)}`, base).href;
@@ -49,10 +61,10 @@ export function siteFiles(root) {
   return files;
 }
 
-export function build(root = projectRoot) {
+export function build(root = projectRoot, now = Date.now()) {
   const output = path.resolve(root, 'dist');
   if (path.dirname(output) !== path.resolve(root) || (fs.existsSync(output) && fs.lstatSync(output).isSymbolicLink())) throw new Error('Dossier d’export invalide.');
-  const files = siteFiles(root);
+  const files = siteFiles(root, now);
   // Vérifier les sources avant de remplacer le précédent export.
   const sources = files;
   fs.rmSync(output, { recursive: true, force: true });
@@ -66,14 +78,14 @@ export function build(root = projectRoot) {
 }
 
 // ZIP sans compression : les photos sont déjà compressées.
-export function zipSite(root) {
+export function zipSite(root, now = Date.now()) {
   const chunks = [], directory = [];
   let offset = 0;
   const table = Array.from({ length: 256 }, (_, n) => {
     for (let i = 0; i < 8; i++) n = (n & 1) ? (0xedb88320 ^ (n >>> 1)) : n >>> 1;
     return n >>> 0;
   });
-  for (const [relative, data] of [...siteFiles(root), ['.nojekyll', Buffer.alloc(0)]]) {
+  for (const [relative, data] of [...siteFiles(root, now), ['.nojekyll', Buffer.alloc(0)]]) {
     const name = Buffer.from(relative);
     let crc = 0xffffffff;
     for (const byte of data) crc = table[(crc ^ byte) & 255] ^ (crc >>> 8);

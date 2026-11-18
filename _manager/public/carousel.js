@@ -1,8 +1,41 @@
 (function (root) {
   'use strict';
   const MAX_SLIDES = 20;
+  const GRADIENTS = {
+    blue: { light: ['#d9ecfa', '#f3f4ff', '#e8def6'], dark: ['#142e45', '#24243d', '#34233f'] },
+    sage: { light: ['#dceee6', '#eff4e8', '#d4e6ed'], dark: ['#18392f', '#27392a', '#183442'] },
+    sunset: { light: ['#fbe1cf', '#fae8df', '#f3dce8'], dark: ['#42291e', '#3d2632', '#30243f'] },
+    lilac: { light: ['#e3dcfa', '#f5e6f0', '#dae9fa'], dark: ['#2e2345', '#40263b', '#1c3348'] }
+  };
+  const FONT = '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+  function visualStyle(theme = 'light') {
+    const css = typeof document === 'undefined' ? null : getComputedStyle(document.documentElement);
+    const dark = ['dark', 'sombre'].includes(theme), prefix = dark ? '--blog-dark-' : '--blog-';
+    const defaults = dark ? { background: '#1a1a1a', text: '#fdfdfd', secondary: '#ddd', muted: '#b8b8b8', line: '#444', surface: '#252525', accent: '#a6cbe3' } :
+      { background: '#fdfdfd', text: '#1a1a1a', secondary: '#444', muted: '#666', line: '#ddd', surface: '#f5f5f5', accent: '#1a5276' };
+    return { font: css?.getPropertyValue('--blog-font').trim() || FONT,
+      ...Object.fromEntries(Object.entries(defaults).map(([key, fallback]) => [key, css?.getPropertyValue(prefix + key).trim() || fallback])) };
+  }
+  let fontsReady;
+  function prepareFonts() {
+    if (typeof document === 'undefined' || !document.fonts) return Promise.resolve();
+    fontsReady ||= Promise.all([400, 600, 700].map(weight => document.fonts.load(`${weight} 32px "Inter"`, 'Été, cœur et photographie')))
+      .then(faces => { if (faces.some(face => !face.length)) throw new Error('Police absente.'); })
+      .catch(() => { fontsReady = null; throw new Error('La police du blog ne peut pas être chargée. Rechargez le gestionnaire avant de télécharger.'); });
+    return fontsReady;
+  }
   const plainText = value => String(value || '').replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/\*\*|__|[*`]/g, '').trim();
-  const slide = (type, values = {}) => ({ type, title: '', text: '', image: '', x: 50, y: 50, fit: 'cover', ...values });
+  const slide = (type, values = {}) => ({ type, title: '', text: '', image: '', altText: '', x: 50, y: 50, fit: 'cover', ...values });
+  function createCaption(article, url = '') {
+    return [plainText(article.title), plainText(article.excerpt), url ? `À lire sur le blog : ${url}` : ''].filter(Boolean).join('\n\n').slice(0, 2200);
+  }
+  function alternativeText(page) {
+    return page.altText?.trim() || [page.title, page.text].filter(Boolean).join('. ');
+  }
+  function instagramText(slides, caption) {
+    return `LÉGENDE INSTAGRAM\n\n${caption || ''}\n\nTEXTES ALTERNATIFS\n\n` +
+      slides.map((page, index) => `Page ${index + 1}\n${alternativeText(page) || 'Description de la photo à renseigner.'}`).join('\n\n');
+  }
   function splitText(value, limit = 650) {
     const parts = []; let remaining = plainText(value);
     while (remaining) {
@@ -24,7 +57,7 @@
       if (block.type === 'image' || block.type === 'gallery') {
         for (const photo of block.type === 'gallery' ? block.images || [] : [block]) {
           if (!photo.src || seen.has(photo.src) || result.length >= MAX_SLIDES) continue;
-          seen.add(photo.src); result.push(slide('photo', { image: photo.src, text: plainText(photo.caption).slice(0, 800) }));
+          seen.add(photo.src); result.push(slide('photo', { image: photo.src, text: plainText(photo.caption).slice(0, 800), altText: plainText(photo.alt).slice(0, 2000) }));
         }
       } else if (['paragraph', 'quote'].includes(block.type) && result.length < 6) addText(block.text);
     }
@@ -48,17 +81,17 @@
     }
     return lines;
   }
-  function textBox(context, value, { x, y, width, height, max = 64, min = 28, weight = 400, color = '#fff' }) {
+  function textBox(context, value, { x, y, width, height, max = 64, min = 28, weight = 400, color = '#1a1a1a', font = FONT, lineHeight = 1.3 }) {
     if (!value.trim()) return true;
     let lines, size;
     for (size = max; size >= min; size -= 2) {
-      context.font = `${weight} ${size}px "Segoe UI", Arial, sans-serif`;
+      context.font = `${weight} ${size}px ${font}`;
       lines = wrapText(context, value, width);
-      if (lines.length * size * 1.3 <= height) break;
+      if (lines.length * size * lineHeight <= height) break;
     }
     if (size < min) return false;
     context.fillStyle = color; context.textBaseline = 'top';
-    lines.forEach((line, index) => context.fillText(line, x, y + index * size * 1.3));
+    lines.forEach((line, index) => context.fillText(line, x, y + index * size * lineHeight));
     return true;
   }
   function drawPhoto(context, image, page, x, y, width, height) {
@@ -68,41 +101,50 @@
     context.drawImage(image.source || image, x + (width - w) * page.x / 100, y + (height - h) * page.y / 100, w, h); context.restore();
   }
   async function render(canvas, page, options, loadImage) {
+    await prepareFonts();
     canvas.width = 1080; canvas.height = options.format === 'square' ? 1080 : 1350;
-    const ctx = canvas.getContext('2d'), h = canvas.height, light = options.theme === 'light';
-    const foreground = light ? '#213e2d' : '#f7f5ec', background = light ? '#f6f3ea' : '#172c22', accent = light ? '#526d44' : '#b7d1a2';
-    ctx.fillStyle = background; ctx.fillRect(0, 0, 1080, h);
+    const ctx = canvas.getContext('2d'), h = canvas.height, style = visualStyle(options.theme);
+    const box = (value, settings) => textBox(ctx, value, { x: 72, width: 936, color: style.text, font: style.font, ...settings });
+    const palette = GRADIENTS[options.gradient];
+    if (palette) {
+      style.muted = options.theme === 'dark' ? '#c8c8c8' : '#555';
+      const gradient = ctx.createLinearGradient(0, 0, 1080, h);
+      palette[options.theme === 'dark' ? 'dark' : 'light'].forEach((color, index) => gradient.addColorStop(index / 2, color));
+      ctx.fillStyle = gradient;
+    } else ctx.fillStyle = style.background;
+    ctx.fillRect(0, 0, 1080, h);
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     const photo = page.image && page.type !== 'text' ? await loadImage(page.image) : null;
     let fits = true;
     if (page.type === 'cover') {
+      let titleY = 285, categoryY = 190;
       if (photo) {
-        drawPhoto(ctx, photo, page, 0, 0, 1080, h);
-        const gradient = ctx.createLinearGradient(0, 0, 0, h);
-        gradient.addColorStop(0, light ? 'rgba(246,243,234,.68)' : 'rgba(15,30,22,.65)');
-        gradient.addColorStop(.35, light ? 'rgba(246,243,234,.24)' : 'rgba(15,30,22,.15)');
-        gradient.addColorStop(.65, light ? 'rgba(246,243,234,.92)' : 'rgba(15,30,22,.92)');
-        gradient.addColorStop(1, background); ctx.fillStyle = gradient; ctx.fillRect(0, 0, 1080, h);
+        const photoHeight = Math.round(h * .39);
+        ctx.fillStyle = style.surface; ctx.fillRect(72, 166, 936, photoHeight);
+        drawPhoto(ctx, photo, page, 72, 166, 936, photoHeight);
+        categoryY = 166 + photoHeight + 42; titleY = categoryY + 84;
       }
-      ctx.fillStyle = accent; ctx.fillRect(72, h * .44 - 32, 72, 5);
-      fits = textBox(ctx, page.title, { x: 72, y: h * .44, width: 936, height: h * .31, max: 86, min: 34, weight: 600, color: foreground });
-      fits = textBox(ctx, page.text, { x: 72, y: h * .79, width: 936, height: h * .12, max: 36, min: 26, color: foreground }) && fits;
+      fits = box(page.text || 'Sur le blog', { y: categoryY, height: 66, max: 26, min: 20, weight: 600, color: style.muted });
+      fits = box(page.title, { y: titleY, height: h - titleY - 146, max: photo ? 86 : 96, min: 32, weight: 700, lineHeight: 1.2 }) && fits;
     } else if (page.type === 'photo') {
-      const captionHeight = page.text || page.title ? 250 : 0, photoHeight = h - 250 - captionHeight;
-      if (photo) drawPhoto(ctx, photo, page, 60, 140, 960, photoHeight);
-      else { ctx.fillStyle = light ? '#e4e9de' : '#294435'; ctx.fillRect(60, 140, 960, photoHeight); }
-      fits = textBox(ctx, [page.title, page.text].filter(Boolean).join('\n'), { x: 72, y: 162 + photoHeight, width: 936, height: captionHeight - 10, max: 36, min: 26, color: foreground });
+      const caption = [page.title, page.text].filter(value => value.trim()).join('\n');
+      const captionHeight = caption ? 250 : 0, photoHeight = h - 320 - captionHeight;
+      ctx.fillStyle = style.surface; ctx.fillRect(72, 166, 936, photoHeight);
+      if (photo) drawPhoto(ctx, photo, page, 72, 166, 936, photoHeight);
+      fits = box(caption, { y: 198 + photoHeight, height: captionHeight, max: 36, min: 26, color: style.secondary });
     } else {
-      ctx.fillStyle = accent; ctx.fillRect(72, 160, 72, 5);
+      box('EXTRAIT DE L’ARTICLE', { y: 190, height: 42, max: 24, min: 24, weight: 600, color: style.muted });
       const hasTitle = !!page.title.trim();
-      if (hasTitle) fits = textBox(ctx, page.title, { x: 72, y: 205, width: 936, height: 255, max: 66, min: 32, weight: 600, color: foreground });
-      fits = textBox(ctx, page.text, { x: 72, y: hasTitle ? 490 : 220, width: 936, height: h - (hasTitle ? 640 : 370), max: 52, min: 28, color: foreground }) && fits;
+      if (hasTitle) fits = box(page.title, { y: 280, height: 220, max: 66, min: 32, weight: 700, lineHeight: 1.2 });
+      const textY = hasTitle ? 540 : 280;
+      fits = box(page.text, { y: textY, height: h - textY - 160, max: 48, min: 28, color: style.secondary, lineHeight: 1.5 }) && fits;
     }
-    textBox(ctx, options.brand, { x: 72, y: 60, width: 936, height: 56, max: 26, min: 18, weight: 600, color: foreground });
-    ctx.fillStyle = accent; ctx.fillRect(72, h - 91, 936, 1);
-    ctx.font = '22px "Segoe UI", Arial, sans-serif'; ctx.fillStyle = foreground; ctx.textBaseline = 'top';
+    fits = box(options.brand || '', { y: 60, height: 48, max: 30, min: 18, weight: 700 }) && fits;
+    ctx.fillStyle = style.line; ctx.fillRect(72, 122, 936, 1); ctx.fillRect(72, h - 106, 936, 1);
+    ctx.font = `400 22px ${style.font}`; ctx.fillStyle = style.muted; ctx.textBaseline = 'top';
     ctx.fillText(`${String(options.index + 1).padStart(2, '0')} / ${String(options.total).padStart(2, '0')}`, 72, h - 65);
-    ctx.textAlign = 'right'; ctx.fillText(options.index + 1 === options.total ? 'À lire sur le blog' : 'Faites défiler', 1008, h - 65); ctx.textAlign = 'left';
+    ctx.fillStyle = style.accent; ctx.textAlign = 'right';
+    ctx.fillText(options.index + 1 === options.total ? 'À lire sur le blog' : 'Faites défiler', 1008, h - 65); ctx.textAlign = 'left';
     return fits;
   }
   // Archive ZIP sans compression, pour conserver les PNG tels quels.
@@ -126,6 +168,6 @@
     e.setUint32(12, directory.reduce((sum, part) => sum + part.length, 0), true); e.setUint32(16, offset, true);
     return new Blob([...chunks, ...directory, end], { type: 'application/zip' });
   }
-  const api = { MAX_SLIDES, slide, plainText, splitText, createSlides, wrapText, render, buildZip };
+  const api = { MAX_SLIDES, slide, plainText, splitText, createSlides, createCaption, alternativeText, instagramText, wrapText, visualStyle, prepareFonts, textBox, drawPhoto, render, buildZip };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.BlogCarousel = api;
 })(globalThis);

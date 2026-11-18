@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!article || typeof article.title !== 'string' || !article.title.trim()) {
       throw new Error('Article invalide.');
     }
+    if (!isArticlePublished(article)) throw new Error('Cet article n’est pas encore publié.');
 
     // Mettre à jour le titre de la page
     document.title = `${article.title} — Blog`;

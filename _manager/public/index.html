@@ -6,6 +6,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Atelier du blog — Sacha G. Photographe</title>
   <link rel="icon" href="/assets/images/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/identity.css">
   <link rel="stylesheet" href="/manager/style.css">
   <script src="/assets/js/main.js" defer></script>
   <script src="/manager/carousel.js" defer></script>
@@ -34,17 +35,19 @@
   <dialog id="story-dialog" class="story-dialog" aria-labelledby="story-title">
     <div class="dialog-header"><div><h2 id="story-title">Créer une story Instagram</h2><p class="field-hint">Image verticale · 1080 × 1920 pixels</p></div><button type="button" data-action="close-story">Fermer</button></div>
     <div class="story-layout">
-      <div class="story-preview"><canvas id="story-canvas" width="1080" height="1920" aria-label="Aperçu de la story Instagram"></canvas><p id="story-status" class="field-hint" role="status" aria-live="polite"></p></div>
+      <div class="story-preview"><canvas id="story-canvas" width="1080" height="1920" role="img" aria-label="Aperçu de la story Instagram" aria-describedby="story-description"></canvas><p id="story-description" class="visually-hidden"></p><p id="story-status" class="field-hint" role="status" aria-live="polite" aria-atomic="true"></p></div>
       <div class="story-controls">
-        <label class="field">Titre de la story<textarea id="story-headline" maxlength="250" rows="3"></textarea></label>
+        <label class="field">Titre de la story<textarea id="story-headline" maxlength="250" rows="3" aria-describedby="story-error"></textarea></label>
+        <p id="story-error" class="field-hint visual-error" role="alert" hidden></p>
         <label class="field">Petit texte au-dessus du titre<input id="story-eyebrow" maxlength="80" placeholder="SUR LE BLOG"></label>
         <label class="field">Invitation à lire<input id="story-cta" maxlength="80" placeholder="Découvrir l’article"></label>
         <label class="field">Signature<input id="story-brand" maxlength="80" placeholder="Nom du blog"></label>
-        <div class="field"><label>Photo de fond</label><div class="actions"> <button type="button" data-action="story-image">Choisir une photo</button><button type="button" data-action="story-remove-image">Retirer</button></div><p id="story-image-label" class="field-hint"></p></div>
+        <div class="field"><label>Photo de la story</label><div class="actions"> <button type="button" data-action="story-image">Choisir une photo</button><button type="button" data-action="story-remove-image">Retirer</button></div><p id="story-image-label" class="field-hint"></p></div>
+        <label class="field">Cadrage<select id="story-fit"><option value="contain">Photo entière</option><option value="cover">Remplir le cadre</option></select></label>
         <label class="field">Position horizontale de la photo <input id="story-position-x" type="range" min="0" max="100" value="50"></label>
         <label class="field">Position verticale de la photo <input id="story-position" type="range" min="0" max="100" value="50"></label>
         <p class="field-hint">Selon le format de la photo, seul l’un des deux réglages peut avoir un effet.</p>
-        <label class="field">Ambiance<select id="story-theme"><option value="sombre">Sombre</option><option value="claire">Claire</option></select></label>
+        <label class="field">Style<select id="story-theme"><option value="claire">Clair · comme le blog</option><option value="sombre">Sombre · variante du blog</option></select></label>
         <div class="actions"><button type="button" class="primary" id="story-download" data-action="story-download" disabled>Télécharger l’image PNG</button></div>
         <p class="field-hint">Pour rendre le lien cliquable, ajoute le sticker « Lien » dans Instagram.</p>
         <div class="story-link"><span id="story-link-text"></span><button type="button" class="small" data-action="story-copy-link">Copier le lien</button></div>
@@ -55,16 +58,28 @@
   <dialog id="carousel-dialog" class="carousel-dialog" aria-labelledby="carousel-title">
     <div class="dialog-header"><div><h2 id="carousel-title">Créer un carrousel Instagram</h2><p class="field-hint">Une proposition à partir de l’article, à adapter avant le téléchargement.</p></div><button type="button" data-carousel="close">Fermer</button></div>
     <div class="carousel-layout">
-      <div class="carousel-preview"><canvas id="carousel-canvas" width="1080" height="1350" aria-label="Aperçu de la page du carrousel"></canvas><p id="carousel-status" class="field-hint" role="status" aria-live="polite"></p><button type="button" class="primary" data-carousel="download" id="carousel-download">Télécharger le carrousel ZIP</button><p class="field-hint">Les images PNG sont numérotées dans l’ordre des pages.</p></div>
+      <div class="carousel-preview"><canvas id="carousel-canvas" width="1080" height="1350" role="img" aria-label="Aperçu de la page du carrousel" aria-describedby="carousel-description"></canvas><p id="carousel-description" class="visually-hidden"></p><p id="carousel-status" class="field-hint" role="status" aria-live="polite" aria-atomic="true"></p><button type="button" class="primary" data-carousel="download" id="carousel-download">Télécharger le carrousel ZIP</button><p class="field-hint">Les images PNG sont numérotées dans l’ordre des pages.</p></div>
       <div class="carousel-controls">
-        <div class="form-grid"><label class="field">Format<select id="carousel-format"><option value="portrait">Portrait · 1080 × 1350</option><option value="square">Carré · 1080 × 1080</option></select></label><label class="field">Ambiance<select id="carousel-theme"><option value="dark">Sombre</option><option value="light">Claire</option></select></label></div>
+        <div class="form-grid"><label class="field">Format<select id="carousel-format"><option value="portrait">Portrait · 1080 × 1350</option><option value="square">Carré · 1080 × 1080</option></select></label><label class="field">Style<select id="carousel-theme"><option value="light">Clair · comme le blog</option><option value="dark">Sombre · variante du blog</option></select></label></div>
+        <label class="field">Dégradé du fond<select id="carousel-gradient" aria-describedby="carousel-gradient-hint"><option value="blue">Bleu et lavande</option><option value="sage">Sauge et bleu</option><option value="sunset">Pêche et rose</option><option value="lilac">Lilas et rose</option><option value="none">Sans dégradé · fond uni</option></select></label>
+        <p class="field-hint" id="carousel-gradient-hint">Le dégradé s’applique à toutes les pages. Ses teintes s’adaptent au style clair ou sombre.</p>
         <label class="field">Signature sur toutes les pages<input id="carousel-brand" maxlength="80"></label>
+        <details class="instagram-preparation" open><summary>Préparer la publication Instagram</summary>
+          <label class="field">Légende de la publication<textarea id="carousel-caption" maxlength="2200" rows="5" aria-describedby="carousel-caption-count"></textarea></label>
+          <p id="carousel-caption-count" class="field-hint"></p>
+          <div class="actions"><button type="button" class="small" data-carousel="copy-caption">Copier la légende</button><button type="button" class="small" data-carousel="download-text">Télécharger les textes</button></div>
+          <p class="field-hint">Une proposition à relire. Le ZIP contient aussi la légende et les descriptions. Ces textes se renseignent ensuite dans Instagram.</p>
+        </details>
         <div class="carousel-pages-head"><h3>Les pages</h3><span id="carousel-count"></span></div><div id="carousel-pages" class="carousel-pages" aria-label="Pages du carrousel"></div>
         <div class="actions carousel-add"><button type="button" class="small" data-carousel="add-photos">Ajouter des photos</button><button type="button" class="small" data-carousel="add-text">Ajouter du texte</button><button type="button" class="text-button" data-carousel="reset">Repartir de l’article</button></div>
         <section class="carousel-page-editor" aria-labelledby="carousel-current-title"><div class="carousel-pages-head"><h3 id="carousel-current-title"></h3><div class="actions"><button type="button" class="small" data-carousel="earlier" aria-label="Déplacer la page avant">←</button><button type="button" class="small" data-carousel="later" aria-label="Déplacer la page après">→</button><button type="button" class="small" data-carousel="remove">Retirer</button></div></div>
           <label class="field">Mise en page<select id="carousel-type"><option value="cover">Couverture</option><option value="photo">Photo et légende</option><option value="text">Extrait de texte</option></select></label>
-          <label class="field">Titre de la page<input id="carousel-headline" maxlength="250"></label>
-          <label class="field">Texte ou légende<textarea id="carousel-text" maxlength="800" rows="4"></textarea></label>
+          <label class="field">Titre de la page<input id="carousel-headline" maxlength="250" aria-describedby="carousel-error"></label>
+          <label class="field">Texte ou légende<textarea id="carousel-text" maxlength="800" rows="4" aria-describedby="carousel-error"></textarea></label>
+          <p id="carousel-error" class="field-hint visual-error" role="alert" hidden></p>
+          <label class="field">Texte alternatif de cette page<textarea id="carousel-alt" maxlength="2000" rows="3" aria-describedby="carousel-alt-hint"></textarea></label>
+          <p id="carousel-alt-hint" class="field-hint">Décrivez la photo et les informations utiles. Ce texte est destiné aux lecteurs d’écran ; il n’apparaît pas sur l’image.</p>
+          <button type="button" class="small" data-carousel="copy-alt">Copier le texte alternatif</button>
           <div id="carousel-photo-controls"><div class="actions"><button type="button" class="small" data-carousel="image">Changer la photo</button><button type="button" class="small" data-carousel="clear-image">Retirer la photo</button></div><label class="field">Cadrage<select id="carousel-fit"><option value="cover">Remplir le cadre</option><option value="contain">Photo entière</option></select></label><label class="field">Position horizontale<input id="carousel-x" type="range" min="0" max="100" value="50"></label><label class="field">Position verticale<input id="carousel-y" type="range" min="0" max="100" value="50"></label></div>
         </section>
         <p class="field-hint">Jusqu’à 20 pages dans cet outil. Le carrousel ne modifie pas l’article. Votre préparation reste dans ce navigateur après fermeture.</p>

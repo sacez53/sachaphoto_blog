@@ -69,12 +69,16 @@ async function fetchText(url) {
 }
 
 /** Valide le catalogue avant son affichage. */
+function isArticlePublished(article, now = Date.now()) {
+  return !article.publishAt || (Number.isFinite(Date.parse(article.publishAt)) && Date.parse(article.publishAt) <= Number(now));
+}
+
 async function fetchArticles() {
   const articles = await fetchJSON('data/articles.json');
   if (!Array.isArray(articles)) throw new Error('Catalogue des articles invalide.');
   return articles.filter((article) => article &&
     typeof article.slug === 'string' && /^[a-zA-Z0-9-]+$/.test(article.slug) &&
-    typeof article.title === 'string' && article.title.trim());
+    typeof article.title === 'string' && article.title.trim() && isArticlePublished(article));
 }
 
 function articleTimestamp(article) {

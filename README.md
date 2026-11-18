@@ -19,7 +19,11 @@ Dans « Articles », choisissez « Nouvel article » ou « Modifier ». Renseign
 
 Les flèches déplacent les blocs. Vous pouvez aussi les dupliquer ou les supprimer. « Aperçu » montre le résultat avec le style du blog, sur ordinateur ou mobile. Les marques de gras, d’italique et de lien restent visibles pendant la saisie ; elles sont mises en forme dans l’aperçu et dans l’article.
 
-« Enregistrer » ou Ctrl+S écrit les fichiers. Un article « Dans le blog » apparaît dans le site local et le prochain export. Un « Brouillon privé » reste dans `.blog-manager/drafts/` et n’est pas exporté. Passer un article existant en brouillon le retire du catalogue et de la prochaine version publique. La date est affichée sur l’article ; elle ne programme pas sa mise en ligne.
+« Enregistrer » ou Ctrl+S écrit les fichiers. Un article « Dans le blog » apparaît dans le site local et le prochain export dès que sa date de publication est atteinte. Un « Brouillon privé » reste dans `.blog-manager/drafts/` et n’est pas exporté. Passer un article existant en brouillon le retire du catalogue et de la prochaine version publique. « Date de l’article » règle la date affichée dans le texte.
+
+« Publication à partir du » règle la date et l’heure de mise en ligne. Le fuseau de votre ordinateur est indiqué sous le champ ; l’heure est enregistrée avec son fuseau pour que GitHub et les visiteurs utilisent le même instant. Laissez le champ vide pour publier au prochain déploiement. Pour programmer, choisissez « Dans le blog », renseignez la date puis enregistrez. Le filtre « Programmés » retrouve les articles en attente.
+
+Avant l’échéance, l’export exclut l’article du catalogue public et ne contient ni son fichier JSON ni sa page de partage. Les brouillons restent exclus même après leur date. Les photos de la médiathèque restent incluses dans l’export. Dans un dépôt GitHub public, les fichiers sources restent consultables dans le dépôt.
 
 La saisie d’un article est également conservée dans ce navigateur. Après une fermeture ou une coupure, rouvrez le même article pour la reprendre. Cette copie n’est pas un enregistrement dans le blog. Les réglages du site doivent être enregistrés avant de quitter leur page.
 
@@ -28,6 +32,10 @@ La saisie d’un article est également conservée dans ce navigateur. Après un
 « Médiathèque » permet d’importer plusieurs images ou de les glisser dans la page. Formats acceptés : JPG, PNG, WebP, GIF, AVIF, SVG sans contenu actif et ICO, jusqu’à 20 Mo par fichier. Un nom déjà utilisé reçoit un suffixe ; aucun fichier n’est écrasé lors d’un import.
 
 Cliquez sur une image pour voir ses utilisations, la remplacer ou la supprimer. Le remplacement garde son adresse et son format. La suppression est refusée tant que l’image est utilisée par un article, un brouillon ou les réglages. Les visuels de secours présents dans les pages HTML sont également protégés.
+
+La médiathèque et le sélecteur de photos affichent les images par lots de 48. « Afficher plus d’images » charge le lot suivant. La recherche porte sur toute la collection ; « Sélectionner les résultats » concerne tous les résultats, même ceux qui ne sont pas encore affichés.
+
+Le gestionnaire garde en mémoire les empreintes des photos inchangées et vérifie les fichiers à chaque actualisation. Les photos remplacées sont recalculées. Le navigateur réutilise aussi les fichiers locaux inchangés après vérification auprès du serveur. Les aperçus de carrousel attendent une courte pause dans la saisie avant leur recalcul.
 
 Dans « Médiathèque », « Nouvel album » crée un classement par reportage ou projet. Vous pouvez sélectionner des photos puis les ajouter à un album. Une photo peut appartenir à plusieurs albums sans être copiée. Le filtre « Sans album » retrouve les images à classer. Les recherches et les filtres d’utilisation fonctionnent aussi dans un album.
 
@@ -49,11 +57,17 @@ Lors d’un déploiement GitHub Pages, les erreurs de fichiers manquants empêch
 
 « Aperçu du partage » montre le titre, le résumé et l’image de couverture. Copiez le lien proposé et partagez-le après avoir mis en ligne un nouvel export. Les réseaux sociaux peuvent conserver leur ancienne vignette en cache. L’adresse publique du blog se règle dans « Le blog » ; vérifiez-la si votre hébergement change.
 
-Dans l’éditeur d’un article, « Créer une story » prépare une image PNG verticale de 1080 × 1920 pixels, avec une photo en arrière-plan et le titre de l’article. Vous pouvez changer la photo, son cadrage, les textes et l’ambiance, puis télécharger le visuel. Cette création ne modifie pas l’article. Le lien copié devient utilisable une fois l’article et le nouvel export mis en ligne. Pour un lien cliquable dans la story, ajoutez le sticker « Lien » dans Instagram.
+Dans l’éditeur d’un article, « Créer une story » prépare une image PNG verticale de 1080 × 1920 pixels. La photo est encadrée au-dessus du titre, comme sur le blog. Vous pouvez changer la photo, son cadrage, les textes et le style, puis télécharger le visuel. Cette création ne modifie pas l’article. Le lien copié devient utilisable une fois l’article et le nouvel export mis en ligne. Pour un lien cliquable dans la story, ajoutez le sticker « Lien » dans Instagram.
+
+Les stories et les carrousels reprennent la typographie du blog, avec ses liens bleus et ses séparateurs gris. Ils utilisent la même police Inter, incluse dans les fichiers du projet pour les exports hors connexion. Le style clair est sélectionné par défaut ; une variante sombre est disponible. Les anciennes préparations de carrousels adoptent ce style à leur prochaine ouverture en conservant leurs pages et leurs textes.
+
+Dans le carrousel, « Dégradé du fond » propose quatre palettes : bleu et lavande, sauge et bleu, pêche et rose, lilas et rose. Les teintes s’adaptent au style clair ou sombre et s’appliquent à toutes les pages, y compris dans les PNG téléchargés. Le choix reste enregistré avec la préparation. « Sans dégradé » permet de retrouver le fond uni.
 
 « Créer un carrousel » prépare une proposition à partir du titre et du contenu de l’article. Choisissez un format portrait de 1080 × 1350 pixels ou carré de 1080 × 1080 pixels. Chaque page peut contenir une couverture, une photo avec sa légende ou un extrait de texte. Modifiez son contenu, choisissez son cadrage et déplacez-la avec les flèches. « Ajouter des photos » permet de sélectionner des images dans un album. L’outil accepte de 2 à 20 pages par carrousel.
 
-« Télécharger le carrousel ZIP » regroupe les images PNG numérotées. Extrayez l’archive, puis sélectionnez les images dans cet ordre dans Instagram. Un texte qui dépasse une page bloque le téléchargement jusqu’à sa correction. La préparation reste dans le même navigateur, pour cet article ; « Repartir de l’article » crée une nouvelle proposition. Le carrousel ne modifie pas l’article et n’est pas publié automatiquement sur Instagram.
+« Préparer la publication Instagram » propose une légende à partir du titre et du résumé, avec le lien vers le blog. Modifiez-la avant de la copier. Chaque page a aussi un champ « Texte alternatif » : décrivez sa photo et les informations utiles pour un lecteur d’écran. Les descriptions des photos de l’article sont reprises quand elles existent. Ces textes ne sont pas imprimés sur les images.
+
+« Télécharger le carrousel ZIP » regroupe les images PNG numérotées et le fichier `publication-instagram.txt`, avec la légende et le texte alternatif de chaque page. « Télécharger les textes » récupère ce fichier seul. Extrayez l’archive, puis sélectionnez les images dans cet ordre dans Instagram. Un texte visible qui dépasse une page bloque le téléchargement jusqu’à sa correction. La préparation reste dans le même navigateur, pour cet article ; « Repartir de l’article » crée de nouvelles pages. Le carrousel ne modifie pas l’article et n’est pas publié automatiquement sur Instagram.
 
 ## Récupérer une version précédente
 
@@ -67,7 +81,9 @@ Le gestionnaire modifie ce dossier sur votre ordinateur. Il n’envoie rien auto
 
 « Exporter le site » télécharge une archive `sachaphoto-blog.zip` et prépare le dossier `dist/`. L’export contient les pages publiques, les articles présents dans le blog et les assets. Il exclut le gestionnaire, les brouillons et les sauvegardes. Vous pouvez envoyer les fichiers de l’archive à votre hébergeur.
 
-Le workflow GitHub Pages exécute les tests et prépare `dist/` avant le déploiement, lors d’un push sur `main`. Les images de la médiathèque font partie des assets exportés, même si elles ne sont pas utilisées dans un article.
+Le workflow GitHub Pages exécute les tests et prépare `dist/` avant le déploiement, lors d’un push sur `main`. Il s’exécute aussi toutes les 15 minutes pour rendre visibles les articles dont la date est atteinte. Le fichier du workflow et les articles programmés doivent avoir été envoyés sur la branche par défaut de GitHub. L’ordinateur n’a ensuite pas besoin de rester allumé.
+
+GitHub Actions peut démarrer en retard : l’heure exacte de publication n’est pas garantie. Dans un dépôt public, GitHub désactive les tâches planifiées après 60 jours sans activité ; réactivez alors le workflow dans l’onglet Actions. Un export téléchargé puis déposé manuellement chez un hébergeur ne se reconstruit pas seul : il faut le refaire après l’échéance. Les images de la médiathèque font partie des assets exportés, même si elles ne sont pas utilisées dans un article.
 
 ## Commandes de maintenance
 

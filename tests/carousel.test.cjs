@@ -1,6 +1,24 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { createSlides, splitText, wrapText, buildZip, render, slide, MAX_SLIDES } = require('../_manager/public/carousel.js');
+const { createCaption, alternativeText, instagramText } = require('../_manager/public/carousel.js');
+
+test('la préparation Instagram conserve les descriptions et produit un texte lisible à exporter', async () => {
+  const article = {title:'Un **oiseau**',excerpt:'Au bord de la rivière.',content:[{type:'image',src:'assets/images/a.jpg',alt:'Un merle sur une branche.',caption:'Le matin'}]};
+  const pages = createSlides(article);
+  const photo = pages.find(page => page.type === 'photo');
+  assert.equal(photo.altText, 'Un merle sur une branche.');
+  const caption = createCaption(article, 'https://example.org/article');
+  assert.match(caption, /Un oiseau\n\nAu bord/);
+  assert.match(caption, /https:\/\/example.org\/article/);
+  assert.ok(createCaption({title:'x'.repeat(3000)}).length <= 2200);
+  photo.altText = 'Description personnalisée 📷';
+  assert.equal(alternativeText(photo), 'Description personnalisée 📷');
+  const text = instagramText(pages, caption);
+  assert.match(text, /Page 3\nDescription personnalisée 📷/);
+  const zip = Buffer.from(await buildZip([{name:'publication-instagram.txt',data:new TextEncoder().encode(text)}]).arrayBuffer());
+  assert.ok(zip.includes(Buffer.from(text)));
+});
 
 test('la proposition conserve les extraits et déduplique les photos sans modifier l’article', () => {
   const article = { title: 'Un **reportage**', category: 'Photo', excerpt: 'Au bord de la rivière.', image: 'assets/images/a.jpg', content: [

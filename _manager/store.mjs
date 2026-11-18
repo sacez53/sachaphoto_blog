@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
+import { isPublicationDue } from './publication.mjs';
 
 export class UserError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
@@ -30,6 +31,7 @@ export function slugify(value) {
 export function createStore(root) {
   root = fs.realpathSync(root);
   const local = '.blog-manager';
+  const mediaRevisions = new Map();
   function file(relative) {
     if (typeof relative !== 'string' || relative.includes('\\') || relative.includes('\0') || relative.split('/').some(p => !p || p === '.' || p === '..' || p.includes(':'))) fail('Chemin de fichier interdit.');
     const target = path.resolve(root, relative);
@@ -49,10 +51,14 @@ export function createStore(root) {
   function read(relative, fallback) {
     const value = bytes(relative);
     if (value === null) return fallback;
+    return parseJSON(value, relative);
+  }
+  function parseJSON(value, relative) {
     try { return JSON.parse(value.toString('utf8').replace(/^\uFEFF/, '')); }
     catch { fail(`Le fichier ${relative} contient un JSON invalide. Il n'a pas été modifié.`, 422); }
   }
   function atomic(relative, value) {
+    mediaRevisions.delete(relative);
     const target = file(relative);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     if (value === null) { fs.rmSync(target, { force: true }); return; }
@@ -129,7 +135,7 @@ export function createStore(root) {
     if (published && draft) fail(`Deux versions existent pour ${slug}. Vérifiez les fichiers avant de continuer.`, 409);
     const raw = published || draft;
     if (!raw) fail('Article introuvable.', 404);
-    return { ...read(published ? publishedFile : draftFile), slug, status: published ? 'published' : 'draft', revision: hash(raw) };
+    return { ...parseJSON(raw, published ? publishedFile : draftFile), slug, status: published ? 'published' : 'draft', revision: hash(raw) };
   }
   function articleNames() {
     const names = new Set();
@@ -157,6 +163,7 @@ export function createStore(root) {
       title: text(input.title, 'Titre', 250, true).trim(),
       author: text(input.author, 'Auteur', 150, true).trim(),
       date: text(input.date, 'Date', 30, true),
+      publishAt: text(input.publishAt || '', 'Date de publication', 40),
       excerpt: text(input.excerpt, 'Résumé', 1000),
       image: mediaPath(input.image),
       featured: input.featured === true,
@@ -191,6 +198,7 @@ export function createStore(root) {
       })
     };
     articleFile(article.slug, 'published');
+    try { isPublicationDue(article); } catch { fail('Date de publication invalide. Choisissez une date et une heure avec un fuseau horaire.'); }
     if (!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{3})?)?(?:Z|[+-]\d{2}:\d{2})?)?$/.test(article.date) || !Number.isFinite(Date.parse(article.date))) fail('Date invalide.');
     if (!['published', 'draft'].includes(input.status)) fail('État de l’article invalide.');
     return article;
@@ -211,14 +219,14 @@ export function createStore(root) {
     if (bytes(other)) changes.set(other, null);
     let list = catalog().filter(item => item.slug !== article.slug);
     if (input.status === 'published') {
-      if (article.featured) {
-        for (const entry of list.filter(item => item.featured || item.important)) {
+      if (article.featured && isPublicationDue(article)) {
+        for (const entry of list.filter(item => (item.featured || item.important) && isPublicationDue(item))) {
           const previous = getArticle(entry.slug);
           const { status, revision, ...publicArticle } = previous;
           publicArticle.featured = publicArticle.important = false;
           changes.set(articleFile(entry.slug, 'published'), json(publicArticle));
         }
-        list = list.map(item => ({ ...item, featured: false, important: false }));
+        list = list.map(item => isPublicationDue(item) ? ({ ...item, featured: false, important: false }) : item);
       }
       const { content, ...entry } = article;
       list.push(entry);
@@ -262,7 +270,11 @@ export function createStore(root) {
     commit('Réglages du blog', new Map([['data/site.json', json(settings)]]));
     return getSettings();
   }
-  function references(media, articles = articleNames().map(getArticle), settings = getSettings()) {
+  function fallbackSources() {
+    return ['index.html', 'article.html', 'articles.html', 'a-propos.html', 'components/header.html', 'components/footer.html']
+      .map(name => bytes(name)?.toString('utf8') || '');
+  }
+  function references(media, articles = articleNames().map(getArticle), settings = getSettings(), sources = fallbackSources()) {
     const result = [];
     for (const article of articles) {
       if (article.image === media || article.content?.some(block => block.src === media || block.images?.some(image => image.src === media))) result.push(`${article.title}${article.status === 'draft' ? ' (brouillon)' : ''}`);
@@ -270,15 +282,30 @@ export function createStore(root) {
     if (settings.avatar === media) result.push('Portrait de l’auteur');
     if (settings.favicon === media) result.push('Icône du blog');
     // Les fichiers HTML gardent un visuel de secours avant le chargement des réglages.
-    for (const name of ['index.html', 'article.html', 'articles.html', 'a-propos.html', 'components/header.html', 'components/footer.html']) {
-      const source = bytes(name)?.toString('utf8');
+    for (const source of sources) {
       if (source?.includes(media) && !result.includes('Visuel de secours du site')) result.push('Visuel de secours du site');
     }
     return result;
   }
   function listMedia() {
     const result = [];
-    const articles = articleNames().map(getArticle), settings = getSettings();
+    const articles = articleNames().map(getArticle), settings = getSettings(), sources = fallbackSources();
+    const usage = new Map();
+    const addUsage = (image, label) => {
+      if (!image) return;
+      if (!usage.has(image)) usage.set(image, []);
+      usage.get(image).push(label);
+    };
+    for (const article of articles) {
+      const images = new Set([article.image]);
+      for (const block of article.content || []) {
+        images.add(block.src);
+        for (const image of block.images || []) images.add(image.src);
+      }
+      for (const image of images) addUsage(image, `${article.title}${article.status === 'draft' ? ' (brouillon)' : ''}`);
+    }
+    addUsage(settings.avatar, 'Portrait de l’auteur'); addUsage(settings.favicon, 'Icône du blog');
+    const present = new Set();
     function walk(folder) {
       if (!fs.existsSync(file(folder))) return;
       for (const entry of fs.readdirSync(file(folder), { withFileTypes: true })) {
@@ -287,11 +314,21 @@ export function createStore(root) {
         if (entry.isDirectory()) walk(relative);
         else if (mediaPattern.test(relative)) {
           const stat = fs.statSync(file(relative));
-          result.push({ path: relative, name: entry.name, size: stat.size, modified: stat.mtime.toISOString(), revision: hash(bytes(relative)), usedBy: references(relative, articles, settings) });
+          const stamp = `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}:${stat.ctimeMs}`;
+          let revision = mediaRevisions.get(relative);
+          if (revision?.stamp !== stamp) revision = { stamp, hash: hash(bytes(relative)) };
+          mediaRevisions.delete(relative);
+          mediaRevisions.set(relative, revision);
+          if (mediaRevisions.size > 4096) mediaRevisions.delete(mediaRevisions.keys().next().value);
+          present.add(relative);
+          const usedBy = [...(usage.get(relative) || [])];
+          if (sources.some(source => source.includes(relative))) usedBy.push('Visuel de secours du site');
+          result.push({ path: relative, name: entry.name, size: stat.size, modified: stat.mtime.toISOString(), revision: revision.hash, usedBy });
         }
       }
     }
     walk('assets/images');
+    for (const key of mediaRevisions.keys()) if (!present.has(key)) mediaRevisions.delete(key);
     return result.sort((a, b) => b.modified.localeCompare(a.modified));
   }
   function getAlbums() {

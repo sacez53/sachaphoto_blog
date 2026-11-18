@@ -9,10 +9,25 @@ const state = { token: '', root: '', articles: [], media: [], settings: {}, edit
 const workspace = $('#workspace'), modal = $('#modal');
 let dialogResolve = null, toastTimer, draftTimer, routeVersion = 0;
 let storyState = null, storyVersion = 0;
-let carouselState = null, carouselVersion = 0, carouselExporting = false;
+let carouselState = null, carouselVersion = 0, carouselExporting = false, carouselTimer;
+const MEDIA_BATCH = 48;
+let mediaLimit = MEDIA_BATCH, pickerLimit = MEDIA_BATCH;
 const carouselImages = new Map();
 const formatSize = size => size >= 1048576 ? `${(size / 1048576).toFixed(1)} Mo` : `${Math.max(1, Math.round(size / 1024))} Ko`;
 const localDate = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
+const localDateValue = value => { if (!value) return ''; const d = new Date(value); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0,16); };
+const scheduledArticle = article => article.status === 'published' && !!article.publishAt && Date.parse(article.publishAt) > Date.now();
+function publicationFields(article) {
+  return `<label class="field">Publication à partir du<input id="publication-date" type="datetime-local" data-field="publishAt" value="${esc(localDateValue(article.publishAt))}" aria-describedby="publication-hint"></label><p class="field-hint" id="publication-hint"></p>`;
+}
+function updatePublicationHint() {
+  const article = state.editor, hint = $('#publication-hint');
+  if (!article || !hint) return;
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  hint.textContent = article.status === 'draft' ? `Brouillon privé. Passez sur « Dans le blog » pour activer la publication. Heure : ${zone}.` :
+    article.publishAt ? `Publication à partir du ${formatDate(article.publishAt)} (${zone}). Après envoi sur GitHub, le site est actualisé environ toutes les 15 minutes ; un retard est possible.` :
+    `Sans date : publication au prochain déploiement. Heure : ${zone}. La date de l’article reste indépendante.`;
+}
 const slugify = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 100).replace(/-$/, '');
 const imageURL = value => '/' + value.split('/').map(encodeURIComponent).join('/');
 const button = (action, label, extra = '', style = '') => `<button type="button" data-action="${action}" ${extra} class="${style}">${label}</button>`;
@@ -108,6 +123,7 @@ function markDirty() {
   if (state.editor) { clearTimeout(draftTimer); draftTimer = setTimeout(storeScratch, 450); updateWordCount(); }
 }
 window.addEventListener('beforeunload', event => {
+  if (carouselState) rememberCarousel();
   if (state.dirty) { storeScratch(); event.preventDefault(); event.returnValue = ''; }
 });
 function pageHeading(eyebrow, title, description, actions = '') {
@@ -143,10 +159,11 @@ async function route() {
       state.articles = await api('articles'); if (version !== routeVersion) return;
       renderArticles();
     } else if (next === '/new' || next.startsWith('/edit/')) {
-      state.settings = await api('settings');
+      const slug = next === '/new' ? null : decodeURIComponent(next.slice(6));
+      const [settings, article] = await Promise.all([api('settings'), slug ? api(`articles/${encodeURIComponent(slug)}`) : Promise.resolve(null)]);
       if (version !== routeVersion) return;
-      state.original = next === '/new' ? null : decodeURIComponent(next.slice(6));
-      state.editor = state.original ? await api(`articles/${encodeURIComponent(state.original)}`) : {
+      state.settings = settings; state.original = slug;
+      state.editor = article || {
         slug: '', title: '', author: state.settings.author || 'Sacha G. Photographe', date: localDate(), excerpt: '', image: '',
         featured: false, status: 'draft', category: '', tags: [], content: [{ type: 'paragraph', text: '', format: 'markdown' }]
       };
@@ -176,18 +193,20 @@ async function route() {
 window.addEventListener('hashchange', () => run(route));
 
 function renderArticles() {
-  const published = state.articles.filter(a => a.status === 'published').length;
+  const published = state.articles.filter(a => a.status === 'published' && !scheduledArticle(a)).length;
+  const drafts = state.articles.filter(a => a.status === 'draft').length;
+  const scheduled = state.articles.filter(scheduledArticle).length;
   workspace.innerHTML = pageHeading('VOTRE JOURNAL', 'Les articles', 'Écrivez vos récits et retrouvez vos articles.',
     button('check-site', 'Vérifier le site') + button('export', 'Exporter le site') + button('new-article', '<span aria-hidden="true">＋</span> Nouvel article', '', 'primary')) +
-    `<div class="stats"><div><strong>${published}</strong> article${published > 1 ? 's' : ''} dans le blog</div><div><strong>${state.articles.length - published}</strong> brouillon${state.articles.length - published > 1 ? 's' : ''}</div><span class="stats-note">Le contenu de votre blog, au même endroit.</span></div>
-    <div class="filters"><div class="tabs" aria-label="Filtrer les articles">${[['all','Tous les articles'],['published','Dans le blog'],['draft','Brouillons']].map(([value,label]) => button('filter-articles', label, `data-value="${value}" aria-pressed="${state.filter === value}"`)).join('')}</div><label class="search"><span class="visually-hidden">Rechercher un article</span><input id="article-search" type="search" placeholder="Rechercher un article…" value="${esc(state.search)}"></label></div><div id="article-results"></div><p class="footnote">« Dans le blog » signifie que l’article est présent dans les fichiers du site. Les brouillons restent privés sur cet ordinateur.</p>`;
+    `<div class="stats"><div><strong>${published}</strong> article${published > 1 ? 's' : ''} dans le blog</div><div><strong>${drafts}</strong> brouillon${drafts > 1 ? 's' : ''}</div><div><strong>${scheduled}</strong> programmé${scheduled > 1 ? 's' : ''}</div><span class="stats-note">Le contenu de votre blog, au même endroit.</span></div>
+    <div class="filters"><div class="tabs" aria-label="Filtrer les articles">${[['all','Tous les articles'],['published','Dans le blog'],['scheduled','Programmés'],['draft','Brouillons']].map(([value,label]) => button('filter-articles', label, `data-value="${value}" aria-pressed="${state.filter === value}"`)).join('')}</div><label class="search"><span class="visually-hidden">Rechercher un article</span><input id="article-search" type="search" placeholder="Rechercher un article…" value="${esc(state.search)}"></label></div><div id="article-results"></div><p class="footnote">« Dans le blog » signifie que l’article est présent dans les fichiers du site. Les articles programmés sont exclus du site exporté avant leur date de publication. Les brouillons restent privés sur cet ordinateur.</p>`;
   renderArticleResults();
 }
 function renderArticleResults() {
-  const articles = state.articles.filter(a => (state.filter === 'all' || a.status === state.filter) && `${a.title} ${a.excerpt} ${a.author}`.toLowerCase().includes(state.search.toLowerCase()));
+  const articles = state.articles.filter(a => (state.filter === 'all' || (state.filter === 'scheduled' ? scheduledArticle(a) : state.filter === 'published' ? a.status === 'published' && !scheduledArticle(a) : a.status === state.filter)) && `${a.title} ${a.excerpt} ${a.author}`.toLowerCase().includes(state.search.toLowerCase()));
   $('#article-results').innerHTML = articles.length ? `<div class="article-list">${articles.map(a => `<article class="article-row">
     ${a.image ? `<img class="article-thumbnail" src="${esc(imageURL(a.image))}" alt="" loading="lazy">` : '<div class="article-thumbnail no-image" aria-hidden="true">S.</div>'}
-    <div><div class="actions"><span class="badge ${a.status === 'draft' ? 'draft' : ''}">${a.status === 'draft' ? 'Brouillon' : 'Dans le blog'}</span>${a.featured && a.status === 'published' ? '<span class="badge featured">À la une</span>' : ''}</div>
+    <div><div class="actions"><span class="badge ${a.status === 'draft' ? 'draft' : ''}">${a.status === 'draft' ? 'Brouillon' : scheduledArticle(a) ? 'Programmé · ' + esc(formatDate(a.publishAt)) : 'Dans le blog'}</span>${a.featured && a.status === 'published' ? '<span class="badge featured">À la une</span>' : ''}</div>
     <h2>${button('edit-article', esc(a.title), `data-slug="${esc(a.slug)}"`)}</h2><p>${esc(a.excerpt || 'Aucun résumé pour cet article.')}</p><div class="row-meta"><span>${esc(formatDate(a.date))}</span><span>·</span><span>${a.blocks} bloc${a.blocks > 1 ? 's' : ''}</span></div></div>
     <div class="row-actions"><div class="actions">${button('edit-article', 'Modifier', `data-slug="${esc(a.slug)}"`, 'small')}${button('duplicate-article', 'Dupliquer', `data-slug="${esc(a.slug)}"`, 'small')}</div>${button('delete-article', 'Supprimer', `data-slug="${esc(a.slug)}"`, 'text-button')}</div>
   </article>`).join('')}</div>` : `<div class="empty"><h2>${state.search || state.filter !== 'all' ? 'Aucun article ne correspond' : 'Votre prochain article commence ici'}</h2><p>${state.search || state.filter !== 'all' ? 'Essayez une autre recherche ou un autre filtre.' : 'Ajoutez un titre, puis construisez votre récit bloc par bloc.'}</p>${button('new-article', 'Créer un article', '', 'primary')}</div>`;
@@ -224,12 +243,12 @@ function renderEditor() {
   workspace.innerHTML = `<a class="back-link" href="#/articles">← Tous les articles</a><div class="page-heading editor-heading"><div><h1>${state.original ? 'Modifier l’article' : 'Nouvel article'}</h1><div class="save-state" id="save-state">${state.dirty ? 'Saisie récupérée · Modifications non enregistrées' : state.original ? 'Toutes les modifications sont enregistrées' : 'Un espace pour votre prochain récit'}</div></div><div class="actions">${button('preview', 'Aperçu')}${button('save-article', 'Enregistrer', '', 'primary')}</div></div>
     <div class="editor-grid"><div><div class="panel"><label class="field">Titre de l’article<input class="title-input" id="article-title" data-field="title" value="${esc(a.title)}" placeholder="Donnez un titre à votre récit" maxlength="250" required></label><label class="field">Résumé<textarea data-field="excerpt" placeholder="Quelques lignes pour donner envie de lire l’article…" maxlength="1000">${esc(a.excerpt)}</textarea></label><p class="field-hint">Le résumé apparaît sur l’accueil et dans la liste des articles.</p></div>
     <div class="editor-content-title"><h2>Le contenu</h2><span>Construisez votre article par blocs</span></div><div id="blocks"></div><div class="add-block"><span>AJOUTER À VOTRE RÉCIT</span><div class="actions">${[['paragraph','＋ Paragraphe'],['heading','Titre de section'],['image','Image'],['gallery','Galerie photo'],['list','Liste'],['quote','Citation']].map(([value,label]) => button('add-block', label, `data-type="${value}"`)).join('')}</div></div><div id="word-count" class="word-count"></div></div>
-    <aside class="editor-aside"><div class="panel"><h2>Enregistrement</h2><label class="field">Présence sur le site<select data-field="status"><option value="draft" ${a.status === 'draft' ? 'selected' : ''}>Brouillon privé</option><option value="published" ${a.status === 'published' ? 'selected' : ''}>Dans le blog</option></select></label><label class="field">Date de l’article<input type="datetime-local" data-field="date" value="${esc(a.date.slice(0,16).length === 10 ? a.date + 'T12:00' : a.date.slice(0,16))}" required></label><label class="field">Auteur<input data-field="author" value="${esc(a.author)}" maxlength="150" required></label><label class="check-label"><input type="checkbox" data-field="featured" ${a.featured ? 'checked' : ''}>Mettre à la une</label><p class="field-hint">Un seul article à la une. Le précédent restera dans la liste des articles.</p></div>
+    <aside class="editor-aside"><div class="panel"><h2>Enregistrement</h2><label class="field">Présence sur le site<select data-field="status"><option value="draft" ${a.status === 'draft' ? 'selected' : ''}>Brouillon privé</option><option value="published" ${a.status === 'published' ? 'selected' : ''}>Dans le blog</option></select></label><label class="field">Date de l’article<input type="datetime-local" data-field="date" value="${esc(a.date.slice(0,16).length === 10 ? a.date + 'T12:00' : a.date.slice(0,16))}" required></label>${publicationFields(a)}<label class="field">Auteur<input data-field="author" value="${esc(a.author)}" maxlength="150" required></label><label class="check-label"><input type="checkbox" data-field="featured" ${a.featured ? 'checked' : ''}>Mettre à la une</label><p class="field-hint">Un seul article à la une. Le précédent restera dans la liste des articles.</p></div>
     <div class="panel"><h2>Image de couverture</h2><div id="cover-preview">${coverHTML(a.image)}</div><div class="actions">${button('choose-cover', 'Choisir une image', '', 'small')}${button('remove-cover', 'Retirer', `id="remove-cover" ${!a.image ? 'disabled' : ''}`, 'small')}</div><p class="field-hint">Choisissez une photo de la médiathèque ou importez-la depuis votre ordinateur.</p></div>
     <div class="panel"><h2>Classement et partage</h2><label class="field">Catégorie<input data-field="category" value="${esc(a.category || '')}" maxlength="80" placeholder="Photographie animalière"></label><label class="field">Mots-clés<input data-field="tags" value="${esc((a.tags || []).join(', '))}" placeholder="nature, forêt, photographie"></label><p class="field-hint">Séparez les mots-clés par une virgule.</p><div class="actions">${button('share-preview','Aperçu du partage','','small')}${button('story-open','Créer une story','','small')}${button('carousel-open','Créer un carrousel','','small')}</div></div>
     <div class="panel"><label>Adresse de l’article<input id="article-slug" data-field="slug" value="${esc(a.slug)}" pattern="[a-zA-Z0-9]+(-[a-zA-Z0-9]+)*" ${state.original ? 'readonly' : ''} maxlength="100" placeholder="mon-article"></label><p class="field-hint">${state.original ? 'Cette adresse reste fixe pour conserver les liens vers votre article.' : 'Générée à partir du titre. Vous pouvez la modifier avant le premier enregistrement.'}</p>${button('discard-editor', 'Abandonner les modifications', '', 'text-button')}</div>
     <p class="tip"><strong>Un titre au milieu du texte ?</strong><br>Ajoutez un bloc « Titre de section ». Utilisez les flèches pour le placer avant le paragraphe concerné.</p></aside></div>`;
-  renderBlocks(); updateWordCount();
+  renderBlocks(); updateWordCount(); updatePublicationHint();
 }
 function coverHTML(value) { return value ? `<img class="cover" src="${esc(imageURL(value))}" alt="Image de couverture">` : '<div class="cover cover-placeholder">Votre image de couverture</div>'; }
 function renderBlocks(focusIndex = null) {
@@ -285,7 +304,8 @@ function openStory() {
   $('#story-brand').value = state.settings.title || 'Sacha G. Photographe';
   $('#story-position-x').value = '50';
   $('#story-position').value = '50';
-  $('#story-theme').value = 'sombre';
+  $('#story-fit').value = 'contain';
+  $('#story-theme').value = 'claire';
   $('#story-link-text').textContent = storyState.url || 'Enregistre l’article pour obtenir son lien de partage.';
   $('[data-action="story-copy-link"]').disabled = !storyState.url;
   $('#story-dialog').showModal();
@@ -326,80 +346,74 @@ async function drawStory() {
   download.disabled = true;
   status.textContent = 'Préparation de l’image…';
   const imagePath = storyState.image;
+  $('#story-headline').removeAttribute('aria-invalid');
+  $('#story-error').hidden = true;
+  $('#story-description').textContent = [$('#story-brand').value, $('#story-eyebrow').value, $('#story-headline').value, $('#story-cta').value].filter(Boolean).join('. ');
   let photo = null;
-  if (imagePath) {
-    try {
+  try {
+    await BlogCarousel.prepareFonts();
+    if (imagePath) {
       photo = await new Promise((resolve, reject) => {
         const image = new Image();
         image.onload = () => resolve(image);
         image.onerror = () => reject(new Error('La photo choisie ne peut pas être chargée.'));
         image.src = imageURL(imagePath);
       });
-    } catch (error) {
-      if (version === storyVersion) { status.textContent = error.message; download.disabled = true; }
-      return false;
     }
+  } catch (error) {
+    if (version === storyVersion) { status.textContent = error.message; download.disabled = true; }
+    return false;
   }
   if (version !== storyVersion || !$('#story-dialog').open) return false;
-  const light = $('#story-theme').value === 'claire';
+  const style = BlogCarousel.visualStyle($('#story-theme').value);
   const w = canvas.width, h = canvas.height;
   context.clearRect(0, 0, w, h);
-  context.fillStyle = light ? '#e8eee3' : '#1a3025'; context.fillRect(0, 0, w, h);
+  context.fillStyle = style.background; context.fillRect(0, 0, w, h);
+  context.imageSmoothingEnabled = true; context.imageSmoothingQuality = 'high';
   if (photo) {
-    const scale = Math.max(w / photo.naturalWidth, h / photo.naturalHeight);
-    const width = photo.naturalWidth * scale, height = photo.naturalHeight * scale;
-    const x = (w - width) * Number($('#story-position-x').value) / 100;
-    const y = (h - height) * Number($('#story-position').value) / 100;
-    context.drawImage(photo, x, y, width, height);
+    context.fillStyle = style.surface; context.fillRect(90, 330, 900, 620);
+    BlogCarousel.drawPhoto(context, photo, { fit: $('#story-fit').value, x: Number($('#story-position-x').value), y: Number($('#story-position').value) }, 90, 330, 900, 620);
   }
-  const gradient = context.createLinearGradient(0, 0, 0, h);
-  if (light) {
-    gradient.addColorStop(0, 'rgba(247,250,244,0.72)'); gradient.addColorStop(0.35, 'rgba(247,250,244,0.28)');
-    gradient.addColorStop(0.56, 'rgba(247,250,244,0.75)'); gradient.addColorStop(1, 'rgba(247,250,244,0.98)');
-  } else {
-    gradient.addColorStop(0, 'rgba(15,30,22,0.65)'); gradient.addColorStop(0.35, 'rgba(15,30,22,0.18)');
-    gradient.addColorStop(0.58, 'rgba(15,30,22,0.76)'); gradient.addColorStop(1, 'rgba(15,30,22,0.98)');
-  }
-  context.fillStyle = gradient; context.fillRect(0, 0, w, h);
-  const color = light ? '#203c2d' : '#ffffff';
-  context.fillStyle = color; context.textBaseline = 'top';
-  context.font = '500 30px system-ui, sans-serif';
-  const brand = $('#story-brand').value.trim();
-  context.fillText(brand, 90, 185, 900);
-  context.fillStyle = light ? '#45684d' : '#c6dcc7';
-  context.font = '600 30px system-ui, sans-serif';
-  context.fillText($('#story-eyebrow').value.trim().toLocaleUpperCase('fr'), 90, 950, 900);
+  const box = (value, settings) => BlogCarousel.textBox(context, value, { x: 90, width: 900, font: style.font, color: style.text, ...settings });
+  let fits = box($('#story-brand').value.trim(), { y: 190, height: 70, max: 36, min: 22, weight: 700 });
+  context.fillStyle = style.line; context.fillRect(90, 280, 900, 1); context.fillRect(90, 1700, 900, 1);
+  const titleY = photo ? 1100 : 730;
+  fits = box($('#story-eyebrow').value.trim().toLocaleUpperCase('fr'), { y: titleY - 100, height: 80, max: 28, min: 20, weight: 600, color: style.muted }) && fits;
   const headline = $('#story-headline').value.trim();
   let size = 104, lines = [];
   while (true) {
-    context.font = `600 ${size}px Georgia, serif`;
+    context.font = `700 ${size}px ${style.font}`;
     lines = storyLines(context, headline, 900);
-    if (lines.length * size * 1.17 <= 400 || size === 32) break;
+    if (lines.length * size * 1.2 <= 400 || size === 32) break;
     size = Math.max(32, size - 4);
   }
-  if (lines.length * size * 1.17 > 400) {
+  if (lines.length * size * 1.2 > 400) {
+    $('#story-headline').setAttribute('aria-invalid', 'true');
+    $('#story-error').textContent = 'Le titre est trop long. Raccourcissez-le ou retirez des retours à la ligne.';
+    $('#story-error').hidden = false;
     status.textContent = 'Le titre est trop long pour le visuel. Raccourcis-le pour le télécharger.';
     return false;
   }
-  context.fillStyle = color;
-  lines.forEach((line, index) => context.fillText(line, 90, 1010 + index * size * 1.17));
+  context.fillStyle = style.text; context.textBaseline = 'top';
+  lines.forEach((line, index) => context.fillText(line, 90, titleY + index * size * 1.2));
   const cta = $('#story-cta').value.trim();
   if (cta) {
-    context.font = '600 30px system-ui, sans-serif';
-    context.fillStyle = light ? '#365d46' : '#deeadc';
-    context.fillRect(90, 1500, 70, 4);
-    context.fillText(cta, 90, 1535, 900);
+    fits = box(cta, { y: 1560, height: 100, max: 32, min: 22, weight: 600, color: style.accent }) && fits;
   }
+  if (!fits) { status.textContent = 'Un texte dépasse le visuel. Raccourcissez-le pour le télécharger.'; return false; }
   $('#story-image-label').textContent = imagePath ? `Photo : ${imagePath.split('/').pop()}` : 'Fond uni. Choisis une photo si tu le souhaites.';
   status.textContent = 'Aperçu prêt · Les textes restent modifiables ici.';
   download.disabled = false;
   return true;
 }
 
-for (const id of ['story-headline', 'story-eyebrow', 'story-cta', 'story-brand', 'story-position-x', 'story-position', 'story-theme']) {
+for (const id of ['story-headline', 'story-eyebrow', 'story-cta', 'story-brand', 'story-position-x', 'story-position', 'story-fit', 'story-theme']) {
   document.getElementById(id).addEventListener('input', () => { drawStory(); });
 }
-$('#story-dialog').addEventListener('close', () => { storyVersion++; storyState = null; });
+$('#story-dialog').addEventListener('close', () => {
+  if ($('#notifications')?.parentElement === $('#story-dialog')) document.body.appendChild($('#notifications'));
+  storyVersion++; storyState = null;
+});
 
 function carouselKey() { return `sachaphoto:${state.root}:carousel:${state.original || 'new'}`; }
 function rememberCarousel() {
@@ -413,27 +427,52 @@ function openCarousel() {
     saved.slides.every(page => page && ['cover', 'photo', 'text'].includes(page.type) && typeof page.title === 'string' && page.title.length <= 250 &&
       typeof page.text === 'string' && page.text.length <= 800 && typeof page.image === 'string' && (!page.image || page.image.startsWith('assets/images/')) &&
       [page.x, page.y].every(value => Number.isFinite(value) && value >= 0 && value <= 100) && ['cover', 'contain'].includes(page.fit));
-  carouselState = valid ? saved : { version: 1, slides: BlogCarousel.createSlides(state.editor), current: 0, format: 'portrait', theme: 'dark', brand: state.settings.title || '' };
+  carouselState = valid ? saved : { version: 1, slides: BlogCarousel.createSlides(state.editor), current: 0, format: 'portrait', theme: 'light', brand: state.settings.title || '' };
   carouselState.current = Math.max(0, Math.min(Number(carouselState.current) || 0, carouselState.slides.length - 1));
   carouselState.brand = String(carouselState.brand || '').slice(0, 80);
+  const base = state.settings.siteUrl || '';
+  const share = base && state.editor.slug ? `${base.replace(/\/?$/, '/')}partage/${encodeURIComponent(state.editor.slug)}/` : '';
+  carouselState.caption = typeof carouselState.caption === 'string' ? carouselState.caption.slice(0, 2200) : BlogCarousel.createCaption(state.editor, share);
+  for (const page of carouselState.slides) page.altText = typeof page.altText === 'string' ? page.altText.slice(0, 2000) : '';
+  $('#carousel-caption').value = carouselState.caption;
+  $('#carousel-caption-count').textContent = `${carouselState.caption.length} / 2200 caractères`;
   carouselState.format = carouselState.format === 'square' ? 'square' : 'portrait';
-  carouselState.theme = carouselState.theme === 'light' ? 'light' : 'dark';
+  // Appliquer le style du blog aux anciennes préparations en conservant leur contenu.
+  carouselState.theme = carouselState.styleVersion === 2 && carouselState.theme === 'dark' ? 'dark' : 'light';
+  carouselState.styleVersion = 2;
+  carouselState.gradient = ['blue', 'sage', 'sunset', 'lilac', 'none'].includes(carouselState.gradient) ? carouselState.gradient : 'blue';
+  $('#carousel-gradient').value = carouselState.gradient;
   carouselImages.clear();
   $('#carousel-format').value = carouselState.format; $('#carousel-theme').value = carouselState.theme; $('#carousel-brand').value = carouselState.brand;
   $('#carousel-dialog').showModal(); renderCarouselEditor();
 }
 function renderCarouselPages() {
+  const pages = $('#carousel-pages');
+  const hadFocus = pages.contains(document.activeElement);
   $('#carousel-count').textContent = `${carouselState.slides.length} / ${BlogCarousel.MAX_SLIDES}`;
   $('#carousel-pages').innerHTML = carouselState.slides.map((page, index) => {
     const label = page.title || page.text.slice(0, 45) || (page.type === 'text' ? 'Texte' : page.type === 'cover' ? 'Couverture' : 'Photo');
-    return `<button type="button" data-carousel="select" data-page="${index}" aria-label="Page ${index + 1} : ${esc(label)}" aria-pressed="${index === carouselState.current}"><span>${String(index + 1).padStart(2, '0')}</span>${page.image && page.type !== 'text' ? `<img src="${esc(imageURL(page.image))}" alt="">` : '<span class="carousel-text-mark" aria-hidden="true">Aa</span>'}<small>${esc(label)}</small></button>`;
+    return `<button type="button" data-carousel="select" data-page="${index}" title="${esc(label)}" aria-label="Page ${index + 1} : ${esc(label)}" aria-pressed="${index === carouselState.current}"><span>${String(index + 1).padStart(2, '0')}</span>${page.image && page.type !== 'text' ? `<img src="${esc(imageURL(page.image))}" alt="">` : '<span class="carousel-text-mark" aria-hidden="true">Aa</span>'}<small>${esc(label)}</small></button>`;
   }).join('');
+  if (hadFocus) $(`[data-page="${carouselState.current}"]`, pages)?.focus({ preventScroll: true });
 }
+$('#carousel-pages').addEventListener('keydown', event => {
+  const control = event.target.closest('[data-page]');
+  if (!control || carouselExporting || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+  event.preventDefault();
+  const last = carouselState.slides.length - 1;
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? last :
+    Math.max(0, Math.min(last, Number(control.dataset.page) + (event.key === 'ArrowRight' ? 1 : -1)));
+  carouselState.current = next;
+  renderCarouselEditor();
+  $(`[data-page="${next}"]`, $('#carousel-pages')).scrollIntoView({ block: 'nearest', inline: 'nearest' });
+});
 function renderCarouselEditor() {
   const page = carouselState.slides[carouselState.current];
   renderCarouselPages();
   $('#carousel-current-title').textContent = `Page ${carouselState.current + 1}`;
   $('#carousel-type').value = page.type; $('#carousel-headline').value = page.title; $('#carousel-text').value = page.text;
+  $('#carousel-alt').value = BlogCarousel.alternativeText(page);
   $('#carousel-x').value = page.x; $('#carousel-y').value = page.y; $('#carousel-fit').value = page.fit;
   $('#carousel-photo-controls').hidden = page.type === 'text';
   $('[data-carousel="earlier"]').disabled = carouselState.current === 0;
@@ -471,6 +510,14 @@ async function drawCarousel() {
     if (version !== carouselVersion || !$('#carousel-dialog').open) return;
     const visible = $('#carousel-canvas'); visible.width = canvas.width; visible.height = canvas.height;
     visible.getContext('2d').drawImage(canvas, 0, 0);
+    const page = snapshot.slides[snapshot.current];
+    $('#carousel-description').textContent = [`Page ${snapshot.current + 1} sur ${snapshot.slides.length}`, snapshot.brand, page.title, page.text].filter(Boolean).join('. ');
+    for (const id of ['carousel-headline', 'carousel-text']) {
+      if (fits) $('#' + id).removeAttribute('aria-invalid');
+      else $('#' + id).setAttribute('aria-invalid', 'true');
+    }
+    $('#carousel-error').textContent = fits ? '' : 'Le texte dépasse cette page. Raccourcissez le titre ou le texte, ou répartissez le contenu sur une autre page.';
+    $('#carousel-error').hidden = fits;
     const saved = rememberCarousel();
     $('#carousel-status').textContent = !fits ? 'Le texte dépasse cette page. Raccourcissez-le ou répartissez-le sur une autre page.' :
       snapshot.slides.length < 2 ? 'Ajoutez une seconde page pour créer un carrousel.' : !saved ? 'Aperçu prêt. La préparation ne peut pas être conservée dans ce navigateur.' : `Page ${snapshot.current + 1} sur ${snapshot.slides.length} · ${canvas.width} × ${canvas.height} pixels`;
@@ -494,10 +541,11 @@ async function downloadCarousel() {
       if (!blob) throw new Error(`La création de la page ${index + 1} a échoué.`);
       entries.push({ name: `${String(index + 1).padStart(2, '0')}-${page.type === 'cover' ? 'couverture' : page.type === 'photo' ? 'photo' : 'texte'}.png`, data: new Uint8Array(await blob.arrayBuffer()) });
     }
+    entries.push({ name: 'publication-instagram.txt', data: new TextEncoder().encode(BlogCarousel.instagramText(snapshot.slides, snapshot.caption)) });
     const blob = BlogCarousel.buildZip(entries), url = URL.createObjectURL(blob), link = document.createElement('a');
     link.href = url; link.download = `carrousel-${slugify(state.editor.title) || 'article'}.zip`; link.click();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
-    $('#carousel-status').textContent = `${entries.length} images téléchargées dans le ZIP. Extrayez-les puis sélectionnez-les dans l’ordre dans Instagram.`;
+    $('#carousel-status').textContent = `${snapshot.slides.length} images et les textes téléchargés dans le ZIP. Extrayez-les puis sélectionnez les images dans l’ordre dans Instagram.`;
   } catch (error) { failure = error.message; }
   finally {
     carouselExporting = false; controls.inert = false; close.disabled = false; $('#carousel-download').disabled = false;
@@ -507,11 +555,22 @@ async function downloadCarousel() {
 $('#carousel-dialog').addEventListener('input', event => {
   if (!carouselState || carouselExporting) return;
   const target = event.target, page = carouselState.slides[carouselState.current];
+  if (target.id === 'carousel-caption' || target.id === 'carousel-alt') {
+    if (target.id === 'carousel-caption') { carouselState.caption = target.value; $('#carousel-caption-count').textContent = `${target.value.length} / 2200 caractères`; }
+    else page.altText = target.value;
+    rememberCarousel(); return;
+  }
   const fields = { 'carousel-headline': 'title', 'carousel-text': 'text', 'carousel-type': 'type', 'carousel-fit': 'fit', 'carousel-x': 'x', 'carousel-y': 'y' };
-  const settings = { 'carousel-format': 'format', 'carousel-theme': 'theme', 'carousel-brand': 'brand' };
+  const settings = { 'carousel-format': 'format', 'carousel-theme': 'theme', 'carousel-brand': 'brand', 'carousel-gradient': 'gradient' };
   if (fields[target.id]) page[fields[target.id]] = ['carousel-x', 'carousel-y'].includes(target.id) ? Number(target.value) : target.value;
   else if (settings[target.id]) carouselState[settings[target.id]] = target.value; else return;
-  $('#carousel-photo-controls').hidden = page.type === 'text'; renderCarouselPages(); rememberCarousel(); drawCarousel();
+  $('#carousel-photo-controls').hidden = page.type === 'text';
+  clearTimeout(carouselTimer); carouselVersion++;
+  $('#carousel-download').disabled = true;
+  carouselTimer = setTimeout(() => {
+    if (!carouselState || !$('#carousel-dialog').open) return;
+    renderCarouselPages(); drawCarousel();
+  }, 120);
 });
 $('#carousel-dialog').addEventListener('click', event => {
   const control = event.target.closest('[data-carousel]');
@@ -521,6 +580,16 @@ $('#carousel-dialog').addEventListener('click', event => {
     control.dataset.pending = 'true';
     try {
       const action = control.dataset.carousel, current = carouselState.current, pages = carouselState.slides;
+      if (action === 'copy-caption' || action === 'copy-alt') {
+        await navigator.clipboard.writeText(action === 'copy-caption' ? carouselState.caption : BlogCarousel.alternativeText(pages[current]));
+        toast(action === 'copy-caption' ? 'Légende copiée.' : 'Texte alternatif copié.'); return;
+      }
+      if (action === 'download-text') {
+        const blob = new Blob([BlogCarousel.instagramText(pages, carouselState.caption)], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob), link = document.createElement('a');
+        link.href = url; link.download = 'publication-instagram.txt'; link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 60000); return;
+      }
       if (action === 'close') { $('#carousel-dialog').close(); return; }
       if (action === 'download') { await downloadCarousel(); return; }
       if (action === 'select') carouselState.current = Number(control.dataset.page);
@@ -542,7 +611,7 @@ $('#carousel-dialog').addEventListener('click', event => {
   });
 });
 $('#carousel-dialog').addEventListener('cancel', event => { if (carouselExporting) event.preventDefault(); });
-$('#carousel-dialog').addEventListener('close', () => { if ($('#notifications')?.parentElement === $('#carousel-dialog')) document.body.appendChild($('#notifications')); if (carouselState) rememberCarousel(); carouselVersion++; carouselState = null; carouselImages.clear(); });
+$('#carousel-dialog').addEventListener('close', () => { clearTimeout(carouselTimer); if ($('#notifications')?.parentElement === $('#carousel-dialog')) document.body.appendChild($('#notifications')); if (carouselState) rememberCarousel(); carouselVersion++; carouselState = null; carouselImages.clear(); });
 
 async function loadMedia() {
   const [media, albums] = await Promise.all([api('media'), api('albums')]);
@@ -579,9 +648,10 @@ function renderMediaSelection() {
   const count = state.mediaSelection.size, album = state.albums.albums.find(item => item.id === state.mediaAlbum);
   $('#media-selection-bar').innerHTML = `<span role="status">${count} image(s) sélectionnée(s)</span><div class="actions">${button('media-select-all', 'Sélectionner les résultats', '', 'small')}${button('media-clear', 'Tout désélectionner', count ? '' : 'disabled', 'small')}${button('album-assign', 'Ajouter à un album', count ? '' : 'disabled', 'small')}${album ? button('album-remove-images', 'Retirer de cet album', count ? '' : 'disabled', 'small') : ''}</div>`;
 }
-function renderMediaResults() {
+function renderMediaResults(reset = true) {
+  if (reset) mediaLimit = MEDIA_BATCH;
   const items = visibleMedia();
-  $('#media-results').innerHTML = items.length ? `<div class="media-grid">${mediaCards(items)}</div>` : '<div class="empty"><h2>Aucune image dans cette sélection</h2><p>Importez une image ou changez les filtres.</p></div>';
+  $('#media-results').innerHTML = items.length ? `<div class="media-grid">${mediaCards(items.slice(0, mediaLimit))}</div><div class="media-more"><p role="status">${Math.min(mediaLimit, items.length)} image(s) affichée(s) sur ${items.length}</p>${items.length > mediaLimit ? button('media-more', 'Afficher plus d’images') : ''}</div>` : '<div class="empty"><h2>Aucune image dans cette sélection</h2><p>Importez une image ou changez les filtres.</p></div>';
   renderMediaSelection();
 }
 function albumForm(rename = false) {
@@ -603,9 +673,12 @@ function pickerItems() {
   const query = $('#picker-search')?.value.toLowerCase() || '', album = $('#picker-album')?.value || 'all';
   return state.media.filter(m => inAlbum(m, album) && m.name.toLowerCase().includes(query));
 }
-function renderPicker() {
+function renderPicker(reset = true) {
+  const focusedPath = $('#picker-results').contains(document.activeElement) ? document.activeElement.dataset.path : null;
+  if (reset) pickerLimit = MEDIA_BATCH;
   const items = pickerItems();
-  $('#picker-results').innerHTML = items.length ? mediaCards(items,true) : '<p class="muted">Aucune image. Vous pouvez en importer une.</p>';
+  $('#picker-results').innerHTML = items.length ? mediaCards(items.slice(0, pickerLimit),true) + (items.length > pickerLimit ? `<div class="media-more">${button('picker-more', 'Afficher plus d’images')}</div>` : '') : '<p class="muted">Aucune image. Vous pouvez en importer une.</p>';
+  if (focusedPath) $$('#picker-results [data-path]').find(item => item.dataset.path === focusedPath)?.focus({ preventScroll: true });
   if (state.picker.multiple) {
     $('#picker-count').textContent = `${state.picker.selected.size} / ${state.picker.max} photo(s) sélectionnée(s). L’ordre suit votre sélection.`;
     $('[data-action="picker-confirm"]').disabled = !state.picker.selected.size;
@@ -669,7 +742,8 @@ document.addEventListener('input', event => {
   if (target.dataset.field && state.editor) {
     const key = target.dataset.field;
     const oldSlug = slugify(state.editor.title);
-    state.editor[key] = key === 'tags' ? target.value.split(',').map(value => value.trim()).filter(Boolean) : target.type === 'checkbox' ? target.checked : target.value;
+    state.editor[key] = key === 'publishAt' ? (target.value && Number.isFinite(new Date(target.value).getTime()) ? new Date(target.value).toISOString() : '') : key === 'tags' ? target.value.split(',').map(value => value.trim()).filter(Boolean) : target.type === 'checkbox' ? target.checked : target.value;
+    if (key === 'publishAt' || key === 'status') updatePublicationHint();
     if (key === 'title' && !state.original && (!state.editor.slug || state.editor.slug === oldSlug)) {
       state.editor.slug = slugify(target.value); $('#article-slug').value = state.editor.slug;
     }
@@ -727,6 +801,14 @@ document.addEventListener('click', event => {
     control.dataset.pending = 'true';
     try {
       if (action === 'dismiss-toast') { $('#notifications').innerHTML = ''; return; }
+      if (action === 'media-more' || action === 'picker-more') {
+        const picker = action === 'picker-more', container = $(picker ? '#picker-results' : '#media-results');
+        const previousCount = $$('.media-card', container).length;
+        if (picker) { pickerLimit += MEDIA_BATCH; renderPicker(false); }
+        else { mediaLimit += MEDIA_BATCH; renderMediaResults(false); }
+        $$('.media-card button', container)[previousCount]?.focus({ preventScroll: true });
+        return;
+      }
       if (action === 'cancel-dialog') { closeModal(); return; }
       if (action === 'confirm-dialog') { closeModal(true); return; }
       if (action === 'new-article') { location.hash = '/new'; return; }
@@ -852,7 +934,7 @@ document.addEventListener('click', event => {
         const article = await api(`articles/${encodeURIComponent(slug)}`);
         const stem = slug.slice(0,85); let next = `${stem}-copie`, n = 2;
         while (state.articles.some(a => a.slug === next)) next = `${stem}-copie-${n++}`;
-        const copy = await api('articles','POST',{ ...article, slug:next, title:`${article.title.slice(0,240)} (copie)`, status:'draft', featured:false, date:localDate() });
+        const copy = await api('articles','POST',{ ...article, slug:next, title:`${article.title.slice(0,240)} (copie)`, status:'draft', featured:false, publishAt:'', date:localDate() });
         state.articles.push({ ...copy, blocks: copy.content.length });
         location.hash = `/edit/${copy.slug}`; toast('Une copie a été créée dans les brouillons.'); return;
       }
@@ -864,15 +946,15 @@ document.addEventListener('click', event => {
         if (picker.multiple) {
           if (picker.selected.has(path)) picker.selected.delete(path);
           else { if (picker.selected.size >= picker.max) throw new Error(`Vous pouvez sélectionner ${picker.max} photos au maximum.`); picker.selected.add(path); }
-          renderPicker();
+          renderPicker(false);
         } else { const callback = picker.callback; closeModal(); callback([path]); }
         return;
       }
-      if (action === 'picker-clear') { state.picker.selected.clear(); renderPicker(); return; }
+      if (action === 'picker-clear') { state.picker.selected.clear(); renderPicker(false); return; }
       if (action === 'picker-select-all') {
         const picker = state.picker, paths = [...new Set([...picker.selected, ...pickerItems().map(item => item.path)])];
         if (paths.length > picker.max) throw new Error(`La sélection dépasserait ${picker.max} photos. Choisissez les photos individuellement ou affinez la recherche.`);
-        picker.selected = new Set(paths); renderPicker(); return;
+        picker.selected = new Set(paths); renderPicker(false); return;
       }
       if (action === 'picker-confirm') {
         const { callback, selected } = state.picker; closeModal(); callback([...selected]); return;

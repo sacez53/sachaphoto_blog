@@ -26,6 +26,15 @@ function element() {
   return { innerHTML: '', busy: true, removeAttribute() { this.busy = false; } };
 }
 
+test('les dates de publication filtrent les articles sans dépendre du fuseau du visiteur', () => {
+  const {context:c} = setup();
+  const article = {publishAt:'2035-06-12T12:00:00+02:00'};
+  assert.equal(c.isArticlePublished(article, Date.parse('2035-06-12T09:59:59Z')), false);
+  assert.equal(c.isArticlePublished(article, Date.parse('2035-06-12T10:00:00Z')), true);
+  assert.equal(c.isArticlePublished({publishAt:'invalide'}), false);
+  assert.equal(c.isArticlePublished({}), true);
+});
+
 test('les textes et les attributs échappent le HTML', () => {
   const { context: c } = setup();
   assert.equal(c.escapeHTML('<img onerror="x"> & \'test\''), '&lt;img onerror=&quot;x&quot;&gt; &amp; &#39;test&#39;');

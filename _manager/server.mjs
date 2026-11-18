@@ -98,10 +98,25 @@ export async function startServer({ root = projectRoot, port = 4899 } = {}) {
       else if (!publicPages.includes(relative) && !/^(?:assets\/(?:images|css|js)\/[^\\]+|components\/(?:header|footer)\.html|data\/(?:site\.json|articles\.json|articles\/[-a-z0-9]+\.json))$/i.test(relative)) throw new UserError('Fichier introuvable.', 404);
       const type = mime[path.extname(relative).toLowerCase()];
       if (!type) throw new UserError('Fichier introuvable.', 404);
-      const value = store.bytes(relative);
-      if (!value) throw new UserError('Fichier introuvable.', 404);
       if (relative.startsWith('_manager/')) response.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' about:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'");
       if (type === 'image/svg+xml') response.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+      if (relative.startsWith('assets/') || /^_manager\/public\/.+\.(?:css|js)$/.test(relative)) {
+        let stat;
+        try { stat = fs.statSync(store.file(relative)); }
+        catch (error) { if (error.code === 'ENOENT') throw new UserError('Fichier introuvable.', 404); throw error; }
+        if (!stat.isFile()) throw new UserError('Fichier introuvable.', 404);
+        const etag = `W/"${stat.ino}-${stat.size}-${stat.mtimeMs}-${stat.ctimeMs}"`;
+        response.setHeader('Cache-Control', 'private, no-cache');
+        response.setHeader('ETag', etag);
+        if (request.headers['if-none-match']?.split(',').map(value => value.trim()).some(value => value === etag || value === '*')) {
+          response.writeHead(304); response.end(); return;
+        }
+        if (request.method === 'HEAD') {
+          response.writeHead(200, { 'Content-Type': type, 'Content-Length': stat.size }); response.end(); return;
+        }
+      }
+      const value = store.bytes(relative);
+      if (!value) throw new UserError('Fichier introuvable.', 404);
       response.writeHead(200, { 'Content-Type': type, 'Content-Length': value.length });
       response.end(request.method === 'HEAD' ? undefined : value);
     } catch (error) {
