@@ -7,7 +7,8 @@ import http from 'node:http';
 import { createHash } from 'node:crypto';
 import { createStore } from '../_manager/store.mjs';
 import { startServer } from '../_manager/server.mjs';
-import { build, publicFiles, zipSite, projectRoot } from '../_manager/build.mjs';
+import { build, publicFiles, publishedCatalog, zipSite, projectRoot } from '../_manager/build.mjs';
+import { needsDeploy } from '../_manager/needs-deploy.mjs';
 import { checkSite } from '../_manager/check.mjs';
 import { isPublicationDue } from '../_manager/publication.mjs';
 
@@ -260,6 +261,26 @@ test('export et archive contiennent seulement les fichiers publics, sans brouill
   assert.match(share, /<base href="\.\.\/\.\.\/">/);
   assert.doesNotMatch(share, /http-equiv="refresh"/);
   assert.ok(!names.some(name => name.includes('secret') || name.includes('_manager') || name.includes('backups')));
+});
+test('une page de partage garde son titre et son lien d’évitement', t => {
+  const { store, root } = fixture(t);
+  fs.writeFileSync(path.join(root,'article.html'),'<!doctype html><html><head><title>Blog</title><meta name="description" content="x"></head><body><a href="#main-content">Aller</a></body></html>');
+  store.saveArticle(article({slug:'prix',status:'published',title:"Tirage 100$' promo"}));
+  build(root);
+  const share = fs.readFileSync(path.join(root,'dist/partage/prix/index.html'),'utf8');
+  assert.match(share, /<title>Tirage 100\$&#39; promo — Blog<\/title>/);
+  assert.match(share, /href="partage\/prix\/#main-content"/);
+});
+test('un passage planifié ne déploie que si le catalogue en ligne diffère', async t => {
+  const { store, root } = fixture(t);
+  store.saveArticle(article({slug:'public',status:'published'}));
+  const expected = publishedCatalog(root);
+  const reply = body => async () => ({ ok:true, json:async () => body });
+  assert.equal((await needsDeploy(root,'schedule',reply(expected))).deploy,false);
+  assert.equal((await needsDeploy(root,'schedule',reply([]))).deploy,true);
+  assert.equal((await needsDeploy(root,'schedule',async () => ({ ok:false, status:503 }))).deploy,true);
+  assert.equal((await needsDeploy(root,'schedule',async () => { throw new Error('réseau'); })).deploy,true);
+  assert.equal((await needsDeploy(root,'push',reply(expected))).deploy,true);
 });
 test('un article programmé reste hors du catalogue, des pages et du ZIP avant son échéance', t => {
   const { store, root } = fixture(t);

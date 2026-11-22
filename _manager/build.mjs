@@ -6,7 +6,7 @@ import { isPublicationDue } from './publication.mjs';
 export const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const publicPages = ['index.html', 'articles.html', 'article.html', 'a-propos.html'];
 
-function publishedCatalog(root, now) {
+export function publishedCatalog(root, now = Date.now()) {
   const catalog = JSON.parse(fs.readFileSync(path.join(root, 'data/articles.json'), 'utf8').replace(/^\uFEFF/, ''));
   const due = catalog.filter(article => {
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(article.slug)) throw new Error('Adresse invalide dans le catalogue.');
@@ -55,7 +55,13 @@ export function siteFiles(root, now = Date.now()) {
     const image = typeof article.image === 'string' && /^assets\/images\/[^?#]+$/i.test(article.image) ? new URL(article.image, base).href : '';
     const title = html(article.title), description = html(article.excerpt), target = html(destination);
     const metadata = `<base href="../../"><meta property="og:type" content="article"><meta property="og:title" content="${title}"><meta property="og:description" content="${description}"><meta property="og:url" content="${html(share)}">${image ? `<meta property="og:image" content="${html(image)}">` : ''}<meta name="twitter:card" content="${image ? 'summary_large_image' : 'summary'}"><meta name="twitter:title" content="${title}"><meta name="twitter:description" content="${description}">${image ? `<meta name="twitter:image" content="${html(image)}">` : ''}<link rel="canonical" href="${target}">`;
-    const page = template.replace(/<head(?:\s[^>]*)?>/i, match => `${match}\n${metadata}`).replace(/<title>[^<]*<\/title>/i, `<title>${title} — Blog</title>`).replace(/<meta\s+name="description"\s+content="[^"]*"\s*\/?\s*>/i, `<meta name="description" content="${description}">`);
+    // Remplacements par fonction : un « $ » dans un titre reste un caractère ordinaire.
+    const page = template
+      .replace(/<head(?:\s[^>]*)?>/i, match => `${match}\n${metadata}`)
+      .replace(/<title>[^<]*<\/title>/i, () => `<title>${title} — Blog</title>`)
+      .replace(/<meta\s+name="description"\s+content="[^"]*"\s*\/?\s*>/i, () => `<meta name="description" content="${description}">`)
+      // Avec <base>, une ancre seule viserait l'accueil au lieu de cette page.
+      .replace(/href="#main-content"/g, () => `href="partage/${article.slug}/#main-content"`);
     files.push([`partage/${article.slug}/index.html`, Buffer.from(page)]);
   }
   return files;

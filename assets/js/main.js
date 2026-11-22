@@ -324,7 +324,8 @@ async function loadComponents() {
       '<div class="container footer-content"><p>&copy; 2026 <b>Sacha G. Photographe</b>. Tous droits réservés.</p></div>')
   ]);
 
-  const currentFile = window.location.pathname.split('/').pop() || 'index.html';
+  // Une page de partage est un article : aucun lien du menu n'est actif.
+  const currentFile = /\/partage\//.test(window.location.pathname) ? '' : window.location.pathname.split('/').pop() || 'index.html';
   document.querySelectorAll('.site-header .site-nav a').forEach((link) => {
     if (link.getAttribute('href') === currentFile) {
       link.setAttribute('aria-current', 'page');

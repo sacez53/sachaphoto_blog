@@ -1,40 +1,59 @@
-# Simple workflow for deploying static content to GitHub Pages
+# Déploie le blog sur GitHub Pages
 name: Deploy static content to Pages
 
 on:
-  # Runs on pushes targeting the default branch
+  # À chaque envoi sur la branche principale
   push:
     branches: ["main"]
 
-  # Allows you to run this workflow manually from the Actions tab
+  # Lancement manuel depuis l'onglet Actions
   workflow_dispatch:
+
+  # Publication des articles programmés. GitHub peut retarder ces passages de plusieurs heures.
   schedule:
     - cron: '7,22,37,52 * * * *'
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+# Un seul déploiement à la fois, sans interrompre celui qui est en cours.
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
-  # Single deploy job since we're just deploying
+  # Un passage planifié ne déploie que si un article est arrivé à échéance.
+  decide:
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.decision.outputs.deploy }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Check whether a deployment is needed
+        id: decision
+        run: node _manager/needs-deploy.mjs
+
   deploy:
+    needs: decide
+    if: needs.decide.outputs.deploy == 'true'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment_retry.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Test
@@ -43,12 +62,25 @@ jobs:
         run: npm run check-site
       - name: Prepare public files
         run: npm run build
+      - name: Install image optimizer
+        run: npm install --no-save --no-package-lock --ignore-scripts sharp@0.35.5
+      - name: Optimize published images
+        run: node _manager/optimize-images.mjs
       - name: Setup Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: 'dist'
       - name: Deploy to GitHub Pages
         id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v5
+      # GitHub peut mettre quelques secondes à rendre l'archive disponible.
+      - name: Wait before retrying
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 30
+      - name: Retry deployment
+        id: deployment_retry
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v5

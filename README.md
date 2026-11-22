@@ -81,9 +81,11 @@ Le gestionnaire modifie ce dossier sur votre ordinateur. Il n’envoie rien auto
 
 « Exporter le site » télécharge une archive `sachaphoto-blog.zip` et prépare le dossier `dist/`. L’export contient les pages publiques, les articles présents dans le blog et les assets. Il exclut le gestionnaire, les brouillons et les sauvegardes. Vous pouvez envoyer les fichiers de l’archive à votre hébergeur.
 
-Le workflow GitHub Pages exécute les tests et prépare `dist/` avant le déploiement, lors d’un push sur `main`. Il s’exécute aussi toutes les 15 minutes pour rendre visibles les articles dont la date est atteinte. Le fichier du workflow et les articles programmés doivent avoir été envoyés sur la branche par défaut de GitHub. L’ordinateur n’a ensuite pas besoin de rester allumé.
+Le workflow GitHub Pages exécute les tests et prépare `dist/` avant le déploiement, lors d’un push sur `main`. Il demande aussi un passage planifié toutes les 15 minutes et ne déploie que si un article est arrivé à échéance. Le fichier du workflow et les articles programmés doivent avoir été envoyés sur la branche par défaut de GitHub. L’ordinateur n’a ensuite pas besoin de rester allumé.
 
-GitHub Actions peut démarrer en retard : l’heure exacte de publication n’est pas garantie. Dans un dépôt public, GitHub désactive les tâches planifiées après 60 jours sans activité ; réactivez alors le workflow dans l’onglet Actions. Un export téléchargé puis déposé manuellement chez un hébergeur ne se reconstruit pas seul : il faut le refaire après l’échéance. Les images de la médiathèque font partie des assets exportés, même si elles ne sont pas utilisées dans un article.
+Sur GitHub Pages, les images sont réduites à 2048 pixels (640 pour le portrait) et leurs métadonnées sont retirées. Les originaux du dossier `assets/images/` ne sont pas modifiés, mais restent téléchargeables dans un dépôt public. L’archive ZIP du gestionnaire contient aussi les originaux.
+
+GitHub Actions retarde souvent les passages planifiés, parfois de plusieurs heures : prévoyez une marge pour une publication à heure précise, ou lancez le workflow à la main depuis l’onglet Actions. Dans un dépôt public, GitHub désactive les tâches planifiées après 60 jours sans activité ; réactivez alors le workflow dans l’onglet Actions. Un export téléchargé puis déposé manuellement chez un hébergeur ne se reconstruit pas seul : il faut le refaire après l’échéance. Les images de la médiathèque font partie des assets exportés, même si elles ne sont pas utilisées dans un article.
 
 ## Commandes de maintenance
 
