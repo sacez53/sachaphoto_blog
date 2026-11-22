@@ -20,6 +20,13 @@ body {
   line-height: 1.75;
   color: var(--blog-text);
   background-color: var(--blog-background);
+  overflow-wrap: break-word;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+h1, h2, h3 {
+  text-wrap: balance;
 }
 
 img {
@@ -78,7 +85,7 @@ select:focus-visible,
 
 /* --- Indicateur de chargement --- */
 .loading-indicator {
-  color: #999;
+  color: #666;
   font-size: 0.9375rem;
   padding: 1rem 0;
   list-style: none;
@@ -152,6 +159,19 @@ section {
 /* --- Articles mis en avant (index) --- */
 .featured-list {
   list-style: none;
+}
+
+/* Toute la carte est cliquable, via le lien du titre. */
+.featured-item,
+.article-card {
+  position: relative;
+}
+
+.featured-item h2 a::after,
+.article-card h3 a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
 }
 
 .featured-item {
@@ -553,15 +573,19 @@ section {
 
 .author-card-close {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
   background: none;
   border: none;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   line-height: 1;
-  color: #999;
+  color: #666;
   cursor: pointer;
-  padding: 0.10rem;
 }
 
 .author-card-close:hover {
@@ -573,6 +597,7 @@ section {
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 1rem;
+  padding-right: 1.75rem;
 }
 
 .id-card-avatar {
@@ -639,21 +664,171 @@ section {
   }
 }
 
-@media (max-width: 480px) {
-  body {
+/* Sous 1200px, le widget flottant recouvrirait le texte : il rejoint le pied de page. */
+@media (max-width: 1199px) {
+  .author-widget {
+    position: static;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 1rem;
+    padding: 0 1rem;
+  }
+
+  .author-id-card {
+    width: min(20rem, 100%);
+    text-align: left;
+    transform-origin: top center;
+  }
+}
+
+/* --- Téléphones --- */
+@media (max-width: 600px) {
+  .site-header {
+    padding: 0.875rem 0 0.25rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .site-header .container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  .site-nav {
+    display: flex;
+    margin-left: -0.75rem;
+  }
+
+  .site-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin-left: 0;
+    padding: 0 0.75rem;
+    font-size: 1rem;
+    text-decoration: none;
+  }
+
+  .site-nav a[aria-current="page"] {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 5px;
+  }
+
+  section {
+    margin-bottom: 2.25rem;
+  }
+
+  .section-title {
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+  }
+
+  /* Le texte justifié crée de grands trous sur une colonne étroite. */
+  .article-content p {
+    text-align: left;
+  }
+
+  .article-content {
+    line-height: 1.65;
+  }
+
+  .featured-item img,
+  .article-hero img:not(.profile-pic) {
+    aspect-ratio: 16 / 9;
+  }
+
+  .featured-item .meta,
+  .article-card .meta,
+  .article-category {
+    font-size: 0.875rem;
+  }
+
+  .article-card .excerpt {
     font-size: 1rem;
   }
 
+  .article-filters {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .article-filters label {
+    width: 100%;
+  }
+
+  .article-filters select {
+    width: 100%;
+    min-height: 44px;
+    font-size: 1rem; /* Sous 16px, iOS zoome à la sélection. */
+  }
+
+  .see-more a,
+  .btn-contact,
+  .author-widget-toggle {
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .see-more a {
+    width: 100%;
+  }
+
+  .contact-buttons {
+    gap: 0.625rem;
+  }
+
+  .btn-contact {
+    flex: 1 1 100%;
+    font-size: 1rem;
+  }
+
+  .id-card-link {
+    align-items: center;
+  }
+
+  .site-footer {
+    margin-top: 2rem;
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 480px) {
   .article-header h1 {
-    font-size: 1.5rem;
+    font-size: 1.625rem;
   }
 
   .featured-item h2 {
-    font-size: 1.25rem;
+    font-size: 1.375rem;
   }
 
   .container {
     padding: 0 1rem;
+  }
+}
+
+/* Au toucher, un :hover resterait affiché après le tap. */
+@media (hover: none) {
+  .see-more a:hover,
+  .btn-contact:hover,
+  .author-widget-toggle:hover {
+    background-color: #f5f5f5;
+    color: #1a1a1a;
+    border-color: #e0e0e0;
+    transform: none;
+  }
+
+  .see-more a:active,
+  .btn-contact:active,
+  .author-widget-toggle:active {
+    background-color: #1a1a1a;
+    color: #fff;
+    border-color: #1a1a1a;
+  }
+
+  .profile-pic:hover {
+    transform: none;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.05);
   }
 }
 

@@ -319,7 +319,7 @@ async function loadComponents() {
   // Chaque composant reste disponible même si l'autre requête échoue.
   await Promise.all([
     load('.site-header', 'components/header.html',
-      '<div class="container"><span class="site-title"><a href="index.html">Sacha G. Photographe</a></span><nav class="site-nav" aria-label="Navigation principale"><a href="index.html">Accueil</a><a href="articles.html">Articles</a></nav></div>'),
+      '<div class="container"><span class="site-title"><a href="index.html">Sacha G. Photographe</a></span><nav class="site-nav" aria-label="Navigation principale"><a href="index.html">Accueil</a><a href="articles.html">Articles</a><a href="a-propos.html">À propos</a></nav></div>'),
     load('.site-footer', 'components/footer.html',
       '<div class="container footer-content"><p>&copy; 2026 <b>Sacha G. Photographe</b>. Tous droits réservés.</p></div>')
   ]);
